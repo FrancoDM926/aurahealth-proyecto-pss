@@ -35,7 +35,7 @@ export default function SignUpPage() {
         </p>
       }
     >
-      <SignUp signInUrl="/sign-in" fallbackRedirectUrl="/sign-in" />
+      <SignUp signInUrl="/sign-in" fallbackRedirectUrl="/completar-perfil" />
     </AuthShell>
   );
 }
