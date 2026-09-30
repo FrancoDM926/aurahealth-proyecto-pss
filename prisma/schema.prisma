@@ -12,8 +12,34 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USUARIO
+  MEDICO
+  ENFERMERA
+  ADMINISTRATIVO
+  ADMINISTRADOR
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id                    String    @id @default(cuid())
+  clerkUserId           String    @unique
+  email                 String    @unique
+  firstName             String
+  lastName              String
+  docType               String    @default("DNI")
+  docNumber             String    @unique
+  birthDate             DateTime
+  phone                 String
+  address               String?
+  alternativeContact    String?
+
+  // Cobertura / Obra Social
+  coverageType          String    @default("PARTICULAR") // "OBRA_SOCIAL" | "PARTICULAR"
+  healthInsuranceEntity String?
+  healthInsurancePlan   String?
+  healthInsuranceNumber String?
+
+  role                  Role      @default(USUARIO)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 }
