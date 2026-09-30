@@ -255,6 +255,108 @@ export async function updateUserProfile(
   }
 }
 
+export async function syncUserEmailInDb(
+  newEmail: string,
+  newEmailAddressId: string
+): Promise<ActionResult> {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return {
+      success: false,
+      message: "No tienes una sesión activa.",
+    };
+  }
+
+  const cleanEmail = newEmail.toLowerCase().trim();
+
+  // Comprobar disponibilidad en DB
+  const emailInUse = await db.user.findFirst({
+    where: {
+      email: cleanEmail,
+      NOT: { clerkUserId: userId },
+    },
+  });
+
+  if (emailInUse) {
+    return {
+      success: false,
+      message:
+        "El correo electrónico ingresado ya está asociado a otra cuenta en la base de datos.",
+      errors: { email: "Este correo ya está en uso." },
+    };
+  }
+
+  try {
+    const client = await clerkClient();
+
+    // 1. Marcar el nuevo correo como primario y verificado desde el Backend SDK de Clerk
+    await client.emailAddresses.updateEmailAddress(newEmailAddressId, {
+      primary: true,
+      verified: true,
+    });
+
+    await client.users.updateUser(userId, {
+      primaryEmailAddressID: newEmailAddressId,
+    });
+
+    // 2. Obtener usuario actualizado de Clerk y eliminar correos anteriores
+    const clerkUser = await client.users.getUser(userId);
+
+    for (const emailObj of clerkUser.emailAddresses) {
+      if (emailObj.id !== newEmailAddressId) {
+        // Si el correo anterior estaba vinculado a una cuenta externa (ej. Google OAuth),
+        // desvinculamos primero la cuenta externa para que Clerk permita borrar el email
+        if (emailObj.linkedTo && emailObj.linkedTo.length > 0) {
+          for (const link of emailObj.linkedTo) {
+            try {
+              await client.users.deleteUserExternalAccount({
+                userId,
+                externalAccountId: link.id,
+              });
+            } catch (unlinkErr) {
+              console.warn(
+                "No se pudo desvincular cuenta externa asociada al email antiguo:",
+                unlinkErr
+              );
+            }
+          }
+        }
+
+        // Eliminar el correo antiguo en Clerk
+        await client.emailAddresses.deleteEmailAddress(emailObj.id);
+      }
+    }
+
+    // 3. Actualizar en la base de datos Postgres
+    await db.user.update({
+      where: { clerkUserId: userId },
+      data: {
+        email: cleanEmail,
+      },
+    });
+
+    revalidatePath("/dashboard/mis-datos");
+    return {
+      success: true,
+      message:
+        "Tu correo electrónico ha sido verificado y actualizado correctamente. Las notificaciones posteriores se enviarán a esta dirección.",
+    };
+  } catch (error: any) {
+    console.error("Error al finalizar el cambio de email:", error);
+    const detail =
+      error?.errors?.[0]?.longMessage ||
+      error?.errors?.[0]?.message ||
+      error?.message ||
+      "Error al actualizar y eliminar el correo anterior.";
+    return {
+      success: false,
+      message: detail,
+    };
+  }
+}
+
+
 export async function getCurrentUserProfile() {
   const { userId } = await auth();
   if (!userId) return null;
@@ -263,3 +365,4 @@ export async function getCurrentUserProfile() {
     where: { clerkUserId: userId },
   });
 }
+
