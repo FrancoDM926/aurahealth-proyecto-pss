@@ -429,7 +429,7 @@ export function MisDatosForm({ user }: { user: UserData }) {
         </div>
 
         <p className="mt-4 text-xs text-ink-secondary">
-          🔒 Documento y fecha de nacimiento no son editables por el usuario: requieren intervención administrativa. Se muestran como texto, sin control de edición.
+          🔒 Documento y fecha de nacimiento no son editables por el usuario: requieren intervención administrativa.
         </p>
       </section>
 
