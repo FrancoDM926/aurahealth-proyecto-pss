@@ -166,6 +166,7 @@ export async function createInternalUser(
       emailAddress: [email],
       firstName,
       lastName,
+      password: randomBytes(24).toString("base64url"),
       skipPasswordChecks: true,
       publicMetadata: {
         role: data.role,
