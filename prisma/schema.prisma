@@ -20,6 +20,12 @@ enum Role {
   ADMINISTRADOR
 }
 
+enum MedicalSpecialty {
+  CLINICA_MEDICA
+  PEDIATRIA
+  TRAUMATOLOGIA
+}
+
 model User {
   id                    String    @id @default(cuid())
   clerkUserId           String    @unique
@@ -40,6 +46,36 @@ model User {
   healthInsuranceNumber String?
 
   role                  Role      @default(USUARIO)
+  specialty             MedicalSpecialty?
+  isActive              Boolean   @default(true)
+  deactivatedAt         DateTime?
+
+  monthlyAvailabilities MonthlyAvailability[]
+
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+}
+
+model MonthlyAvailability {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year      Int
+  month     Int
+  jornadas  AvailabilityJornada[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, year, month])
+}
+
+model AvailabilityJornada {
+  id                    String              @id @default(cuid())
+  monthlyAvailabilityId String
+  monthlyAvailability   MonthlyAvailability @relation(fields: [monthlyAvailabilityId], references: [id], onDelete: Cascade)
+  date                  DateTime            @db.Date
+  startTime             String
+  endTime               String
+
+  @@unique([monthlyAvailabilityId, date])
 }

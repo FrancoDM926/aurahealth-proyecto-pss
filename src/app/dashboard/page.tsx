@@ -1,10 +1,7 @@
-import { redirect } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
-import { auth } from "@clerk/nextjs/server";
-import { BrandLogo } from "@/components/logo";
-import { HeartPulseIcon } from "@/components/icons";
-import { getCurrentUserProfile } from "@/actions/user";
 import Link from "next/link";
+import { HeartPulseIcon } from "@/components/icons";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { requireUserProfile } from "@/lib/auth-session";
 
 export const metadata = {
   title: "Dashboard",
@@ -12,46 +9,14 @@ export const metadata = {
 };
 
 export default async function DashboardPage() {
-  const { userId } = await auth();
-
-  if (!userId) {
-    redirect("/sign-in");
-  }
-
-  const profile = await getCurrentUserProfile();
-  if (!profile) {
-    redirect("/completar-perfil");
-  }
+  const profile = await requireUserProfile();
 
   return (
-    <main className="flex min-h-dvh flex-col bg-background">
-      <header className="flex items-center justify-between border-b border-line bg-surface px-6 py-4 sm:px-10">
-        <div className="flex items-center gap-8">
-          <BrandLogo />
-          <nav className="hidden items-center gap-4 sm:flex">
-            <Link
-              href="/dashboard"
-              className="border-b-2 border-primary pb-1 text-sm font-bold text-primary"
-            >
-              Inicio
-            </Link>
-            <Link
-              href="/dashboard/mis-datos"
-              className="text-sm font-medium text-ink-secondary hover:text-ink transition"
-            >
-              Mi cuenta
-            </Link>
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="hidden text-sm font-medium text-ink sm:inline">
-            {profile.firstName} {profile.lastName}
-          </span>
-          <UserButton />
-        </div>
-      </header>
-
+    <DashboardShell
+      userName={`${profile.firstName} ${profile.lastName}`}
+      role={profile.role}
+      activeNav="inicio"
+    >
       <section className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center sm:py-24">
         <span className="inline-flex size-16 items-center justify-center rounded-2xl bg-primary-light text-primary">
           <HeartPulseIcon className="size-8" />
@@ -73,7 +38,23 @@ export default async function DashboardPage() {
           </Link>
           .
         </p>
+        {profile.role === "MEDICO" && (
+          <Link
+            href="/dashboard/disponibilidad"
+            className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+          >
+            Cargar disponibilidad mensual
+          </Link>
+        )}
+        {profile.role === "ADMINISTRADOR" && (
+          <Link
+            href="/dashboard/admin/usuarios"
+            className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+          >
+            Gestionar usuarios internos
+          </Link>
+        )}
       </section>
-    </main>
+    </DashboardShell>
   );
 }
