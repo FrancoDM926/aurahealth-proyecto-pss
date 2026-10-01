@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { assertRoles } from "@/lib/auth-session";
 import {
   validateMonthlyJornadasRN02,
   type JornadaInput,
@@ -60,7 +61,15 @@ export async function getMonthlyAvailability(year: number, month: number) {
   if (!userId) return null;
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!user || user.role !== "MEDICO" || !user.isActive) return null;
+  if (!user || !user.isActive) return null;
+
+  // Rol autoritativo en Clerk. La página ya aplicó `requireRoles(["MEDICO"])`,
+  // pero la acción se expone al cliente y no debe confiar en ese gate.
+  try {
+    await assertRoles(["MEDICO"]);
+  } catch {
+    return null;
+  }
 
   try {
     return await db.monthlyAvailability.findUnique({
@@ -95,7 +104,15 @@ export async function saveMonthlyAvailability(
   }
 
   const user = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!user || user.role !== "MEDICO" || !user.isActive) {
+  if (!user || !user.isActive) {
+    return { success: false, message: "Solo los médicos pueden cargar disponibilidad." };
+  }
+
+  // Rol autoritativo en Clerk: esta acción es un endpoint público para el
+  // cliente y revalida por su cuenta.
+  try {
+    await assertRoles(["MEDICO"]);
+  } catch {
     return { success: false, message: "Solo los médicos pueden cargar disponibilidad." };
   }
 

@@ -8,12 +8,12 @@ export const metadata = {
 };
 
 export default async function MisDatosPage() {
-  const user = await requireUserProfile();
+  const { role, profile } = await requireUserProfile();
 
   return (
     <DashboardShell
-      userName={`${user.firstName} ${user.lastName}`}
-      role={user.role}
+      userName={`${profile.firstName} ${profile.lastName}`}
+      role={role}
       activeNav="mis-datos"
     >
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -29,7 +29,7 @@ export default async function MisDatosPage() {
           </p>
         </div>
 
-        <MisDatosForm user={user} />
+        <MisDatosForm user={profile} />
       </div>
     </DashboardShell>
   );

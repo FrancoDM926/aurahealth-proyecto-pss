@@ -2,6 +2,7 @@ import Link from "next/link";
 import { HeartPulseIcon } from "@/components/icons";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { requireUserProfile } from "@/lib/auth-session";
+import { ROLE_LABELS } from "@/lib/roles";
 
 export const metadata = {
   title: "Dashboard",
@@ -9,12 +10,12 @@ export const metadata = {
 };
 
 export default async function DashboardPage() {
-  const profile = await requireUserProfile();
+  const { role, profile } = await requireUserProfile();
 
   return (
     <DashboardShell
       userName={`${profile.firstName} ${profile.lastName}`}
-      role={profile.role}
+      role={role}
       activeNav="inicio"
     >
       <section className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center sm:py-24">
@@ -26,7 +27,9 @@ export default async function DashboardPage() {
           ¡Hola, {profile.firstName}!
         </h1>
         <p className="mt-4 text-lg text-pretty text-ink">
-          Tu cuenta con rol <span className="font-semibold text-primary">{profile.role}</span> está lista.
+          Tu cuenta con rol{" "}
+          <span className="font-semibold text-primary">{ROLE_LABELS[role]}</span> está
+          lista.
         </p>
         <p className="mt-4 max-w-md text-pretty text-ink-secondary">
           Podés consultar o actualizar tu información y obra social ingresando a{" "}
@@ -38,7 +41,7 @@ export default async function DashboardPage() {
           </Link>
           .
         </p>
-        {profile.role === "MEDICO" && (
+        {role === "MEDICO" && (
           <Link
             href="/dashboard/disponibilidad"
             className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
@@ -46,7 +49,7 @@ export default async function DashboardPage() {
             Cargar disponibilidad mensual
           </Link>
         )}
-        {profile.role === "ADMINISTRADOR" && (
+        {role === "ADMINISTRADOR" && (
           <Link
             href="/dashboard/admin/usuarios"
             className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"

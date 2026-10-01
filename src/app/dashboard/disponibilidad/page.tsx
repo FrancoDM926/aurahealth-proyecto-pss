@@ -20,7 +20,7 @@ export const metadata = {
 };
 
 export default async function DisponibilidadPage({ searchParams }: PageProps) {
-  const profile = await requireRoles(["MEDICO"]);
+  const { role, profile } = await requireRoles(["MEDICO"]);
   const params = await searchParams;
 
   const now = new Date();
@@ -38,7 +38,7 @@ export default async function DisponibilidadPage({ searchParams }: PageProps) {
   return (
     <DashboardShell
       userName={`${profile.firstName} ${profile.lastName}`}
-      role={profile.role}
+      role={role}
       activeNav="disponibilidad"
     >
       <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">

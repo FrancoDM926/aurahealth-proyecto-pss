@@ -3,6 +3,28 @@
 import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { parseClerkRole } from "@/lib/roles";
+import type { Role } from "@/generated/prisma/client";
+
+/**
+ * Persiste el rol autoritativo en la metadata pública de Clerk.
+ *
+ * `updateUserMetadata` hace merge profundo, así que otras claves de
+ * `publicMetadata` (por ejemplo `internal`) se conservan. Un rol preexistente se
+ * preserva: solo las escrituras desde el Backend API pueden haberlo fijado, y
+ * degradar a un administrador a `USUARIO` lo dejaría sin acceso.
+ */
+async function ensureClerkRole(
+  clerkUserId: string,
+  existingRole: Role | null
+): Promise<Role> {
+  const role: Role = existingRole ?? "USUARIO";
+  const client = await clerkClient();
+  await client.users.updateUserMetadata(clerkUserId, {
+    publicMetadata: { role },
+  });
+  return role;
+}
 
 export type CompleteProfileInput = {
   firstName: string;
@@ -87,6 +109,20 @@ export async function completeUserProfile(
 
   if (existingUser) {
     if (existingUser.clerkUserId === userId) {
+      // La fila ya existe. El rol autoritativo vive en Clerk, así que hay que
+      // garantizar que la metadata exista: si falló una escritura previa, esta
+      // ruta es la que desbloquea la cuenta en lugar de dejarla en deny-by-default.
+      try {
+        await ensureClerkRole(userId, parseClerkRole(user.publicMetadata?.role));
+      } catch (error) {
+        console.error("No se pudo sincronizar el rol en Clerk:", error);
+        return {
+          success: false,
+          message:
+            "No pudimos verificar tu rol en el sistema. Intentá nuevamente en unos minutos.",
+        };
+      }
+
       return {
         success: true,
         message: "Tu perfil ya se encontraba registrado.",
@@ -115,7 +151,17 @@ export async function completeUserProfile(
   try {
     const parsedDate = new Date(data.birthDate);
 
-    // Crear el usuario en Postgres con rol USUARIO (RN: toda cuenta creada por autorregistro recibe rol Usuario)
+    // El rol es autoritativo en Clerk. Se escribe ANTES que la fila en Postgres:
+    // si Clerk falla, no queda un perfil sin rol y el reintento es limpio. Si
+    // falla Postgres, el guard `NO_PROFILE` devuelve al usuario a esta pantalla.
+    //
+    // RN-11: una cuenta creada por autorregistro nunca trae rol previo, así que
+    // recibe `USUARIO`. Un rol preexistente solo puede provenir del Backend API
+    // (p. ej. un administrador dado de alta en el Dashboard de Clerk) y se
+    // preserva en lugar de degradarlo.
+    const role = await ensureClerkRole(userId, parseClerkRole(user.publicMetadata?.role));
+
+    // Espejo en Postgres: solo display y reconciliación, no autoriza.
     await db.user.create({
       data: {
         clerkUserId: userId,
@@ -135,15 +181,7 @@ export async function completeUserProfile(
           data.coverageType === "OBRA_SOCIAL" ? data.healthInsurancePlan?.trim() : null,
         healthInsuranceNumber:
           data.coverageType === "OBRA_SOCIAL" ? data.healthInsuranceNumber?.trim() : null,
-        role: "USUARIO",
-      },
-    });
-
-    // Guardar el rol en la metadata pública de Clerk
-    const client = await clerkClient();
-    await client.users.updateUserMetadata(userId, {
-      publicMetadata: {
-        role: "USUARIO",
+        role,
       },
     });
 

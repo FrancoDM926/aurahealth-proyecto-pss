@@ -9,13 +9,13 @@ export const metadata = {
 };
 
 export default async function InternalUsersPage() {
-  const profile = await requireRoles(["ADMINISTRADOR"]);
+  const { role, profile } = await requireRoles(["ADMINISTRADOR"]);
   const users = await listInternalUsers();
 
   return (
     <DashboardShell
       userName={`${profile.firstName} ${profile.lastName}`}
-      role={profile.role}
+      role={role}
       activeNav="usuarios"
     >
       <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">

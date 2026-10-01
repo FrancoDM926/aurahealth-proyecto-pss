@@ -1,10 +1,11 @@
 "use server";
 
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import type { MedicalSpecialty, Role } from "@/generated/prisma/client";
-import { INTERNAL_ROLES } from "@/lib/roles";
+import { assertRoles } from "@/lib/auth-session";
+import { INTERNAL_ROLES, parseClerkRole } from "@/lib/roles";
 import { parseMedicalSpecialty } from "@/lib/specialty";
 import { randomBytes } from "crypto";
 import type { User } from "@/generated/prisma/client";
@@ -25,16 +26,12 @@ export type ActionResult = {
 
 const CREATABLE_ROLES: Role[] = ["MEDICO", "ENFERMERA", "ADMINISTRATIVO"];
 
+/**
+ * El rol del actor se resuelve contra Clerk mediante el DAL compartido, que
+ * además cubre sesión, existencia de perfil y `isActive`.
+ */
 async function assertAdministrator() {
-  const { userId } = await auth();
-  if (!userId) {
-    throw new Error("UNAUTHORIZED");
-  }
-  const admin = await db.user.findUnique({ where: { clerkUserId: userId } });
-  if (!admin || admin.role !== "ADMINISTRADOR" || !admin.isActive) {
-    throw new Error("FORBIDDEN");
-  }
-  return admin;
+  return assertRoles(["ADMINISTRADOR"]);
 }
 
 function splitFullName(fullName: string): { firstName: string; lastName: string } {
@@ -174,22 +171,36 @@ export async function createInternalUser(
       },
     });
 
-    await db.user.create({
-      data: {
-        clerkUserId: clerkUser.id,
-        email,
-        firstName,
-        lastName,
-        docType: "DNI",
-        docNumber,
-        birthDate: new Date("1990-01-01T00:00:00.000Z"),
-        phone: "Pendiente",
-        coverageType: "PARTICULAR",
-        role: data.role,
-        specialty: data.role === "MEDICO" ? data.specialty! : null,
-        isActive: true,
-      },
-    });
+    await db.user
+      .create({
+        data: {
+          clerkUserId: clerkUser.id,
+          email,
+          firstName,
+          lastName,
+          docType: "DNI",
+          docNumber,
+          birthDate: new Date("1990-01-01T00:00:00.000Z"),
+          phone: "Pendiente",
+          coverageType: "PARTICULAR",
+          role: data.role,
+          specialty: data.role === "MEDICO" ? data.specialty! : null,
+          isActive: true,
+        },
+      })
+      .catch(async (dbErr: unknown) => {
+        // Sin la fila en Postgres el usuario no puede autenticarse, pero existiría
+        // como identidad huérfana en Clerk. Se revierte la creación.
+        try {
+          await client.users.deleteUser(clerkUser.id);
+        } catch (cleanupErr) {
+          console.error(
+            `Alta revertida en Postgres, pero no se pudo eliminar ${clerkUser.id} de Clerk:`,
+            cleanupErr
+          );
+        }
+        throw dbErr;
+      });
 
     revalidatePath("/dashboard/admin/usuarios");
     return {
@@ -223,13 +234,23 @@ export async function deactivateInternalUser(userId: string): Promise<ActionResu
   }
 
   const target = await db.user.findUnique({ where: { id: userId } });
-  if (!target || !INTERNAL_ROLES.includes(target.role)) {
+  if (!target) {
     return { success: false, message: "Usuario no encontrado." };
   }
   if (!target.isActive) {
     return { success: false, message: "El usuario ya está dado de baja." };
   }
-  if (target.role === "ADMINISTRADOR") {
+
+  // El rol del objetivo también se resuelve contra Clerk, que es la fuente
+  // autoritativa. `target.role` es solo el espejo en Postgres.
+  const client = await clerkClient();
+  const targetClerkUser = await client.users.getUser(target.clerkUserId);
+  const targetRole = parseClerkRole(targetClerkUser.publicMetadata?.role);
+
+  if (!targetRole || !INTERNAL_ROLES.includes(targetRole)) {
+    return { success: false, message: "Usuario no encontrado." };
+  }
+  if (targetRole === "ADMINISTRADOR") {
     return {
       success: false,
       message: "No se puede dar de baja a un administrador desde esta pantalla.",
@@ -245,7 +266,6 @@ export async function deactivateInternalUser(userId: string): Promise<ActionResu
       },
     });
 
-    const client = await clerkClient();
     try {
       await client.users.banUser(target.clerkUserId);
     } catch (banErr) {

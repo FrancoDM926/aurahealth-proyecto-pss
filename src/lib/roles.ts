@@ -1,11 +1,29 @@
 import type { MedicalSpecialty, Role } from "@/generated/prisma/client";
 
+export const ALL_ROLES: Role[] = [
+  "USUARIO",
+  "MEDICO",
+  "ENFERMERA",
+  "ADMINISTRATIVO",
+  "ADMINISTRADOR",
+];
+
 export const INTERNAL_ROLES: Role[] = [
   "MEDICO",
   "ENFERMERA",
   "ADMINISTRATIVO",
   "ADMINISTRADOR",
 ];
+
+/**
+ * Valida un valorproveniente de la metadata de Clerk contra el enum `Role`.
+ * Deny-by-default: cualquier valor ausente, no-string o fuera del enum
+ * devuelve `null` y el llamador debe negar el acceso.
+ */
+export function parseClerkRole(value: unknown): Role | null {
+  if (typeof value !== "string") return null;
+  return (ALL_ROLES as string[]).includes(value) ? (value as Role) : null;
+}
 
 export const ROLE_LABELS: Record<Role, string> = {
   USUARIO: "Usuario",
