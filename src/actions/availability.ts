@@ -46,6 +46,7 @@ function validateJornadaTimes(jornadas: JornadaPayload[]): Record<string, string
     }
     if (end <= start) {
       errors[j.date] = "La hora de fin debe ser posterior al inicio.";
+      continue;
     }
     if ((end - start) % 30 !== 0) {
       errors[j.date] = "La franja debe dividirse en bloques de 30 minutos (RN-09).";
