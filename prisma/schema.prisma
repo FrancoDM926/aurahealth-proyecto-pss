@@ -51,20 +51,23 @@ model User {
   deactivatedAt         DateTime?
 
   monthlyAvailabilities MonthlyAvailability[]
+  turnos                Turno[]                 @relation("DoctorTurnos")
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 }
 
 model MonthlyAvailability {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  year      Int
-  month     Int
-  jornadas  AvailabilityJornada[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year        Int
+  month       Int
+  isConfirmed Boolean  @default(false)
+  confirmedAt DateTime?
+  jornadas    AvailabilityJornada[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([userId, year, month])
 }
@@ -76,6 +79,35 @@ model AvailabilityJornada {
   date                  DateTime            @db.Date
   startTime             String
   endTime               String
+  turnos                Turno[]
 
   @@unique([monthlyAvailabilityId, date])
 }
+
+enum EstadoTurno {
+  DISPONIBLE
+  RESERVADO
+  CUMPLIDO
+  AUSENTE
+  CANCELADO
+}
+
+model Turno {
+  id        String               @id @default(cuid())
+  doctorId  String
+  doctor    User                 @relation("DoctorTurnos", fields: [doctorId], references: [id], onDelete: Cascade)
+  jornadaId String?
+  jornada   AvailabilityJornada? @relation(fields: [jornadaId], references: [id], onDelete: SetNull)
+  date      DateTime             @db.Date
+  startTime String               // "HH:mm" (ej. "08:00")
+  endTime   String               // "HH:mm" (ej. "08:30")
+  duration  Int                  @default(30) // Fijo 30 minutos (RN-09)
+  status    EstadoTurno          @default(DISPONIBLE)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@unique([doctorId, date, startTime])
+  @@index([doctorId, date])
+  @@index([status, date])
+}
+

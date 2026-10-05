@@ -3,7 +3,7 @@ import { UserButton } from "@clerk/nextjs";
 import { BrandLogo } from "@/components/logo";
 import type { Role } from "@/generated/prisma/client";
 
-type NavKey = "inicio" | "mis-datos" | "usuarios" | "disponibilidad";
+type NavKey = "inicio" | "mis-datos" | "usuarios" | "disponibilidad" | "agenda-generada";
 
 type DashboardShellProps = {
   userName: string;
@@ -21,6 +21,7 @@ export function DashboardShell({
   const links: { key: NavKey; href: string; label: string; roles: Role[] }[] = [
     { key: "inicio", href: "/dashboard", label: "Inicio", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },
     { key: "disponibilidad", href: "/dashboard/disponibilidad", label: "Disponibilidad", roles: ["MEDICO"] },
+    { key: "agenda-generada", href: "/dashboard/agenda-generada", label: "Generación de turnos", roles: ["MEDICO", "ADMINISTRADOR"] },
     { key: "usuarios", href: "/dashboard/admin/usuarios", label: "Usuarios", roles: ["ADMINISTRADOR"] },
     { key: "mis-datos", href: "/dashboard/mis-datos", label: "Mi cuenta", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },
   ];

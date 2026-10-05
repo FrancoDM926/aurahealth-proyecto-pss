@@ -154,7 +154,9 @@ export function MonthlyAvailabilityForm({
     const result = await saveMonthlyAvailability(year, month, list);
     setLoading(false);
     setMessage(result.message ?? null);
-    if (result.success) router.refresh();
+    if (result.success) {
+      router.push(`/dashboard/agenda-generada?year=${year}&month=${month}`);
+    }
   };
 
   return (
@@ -338,6 +340,15 @@ export function MonthlyAvailabilityForm({
           >
             {loading ? "Guardando…" : "Guardar disponibilidad"}
           </button>
+          {initialJornadas.length > 0 && (
+            <button
+              type="button"
+              onClick={() => router.push(`/dashboard/agenda-generada?year=${year}&month=${month}`)}
+              className="rounded-lg border-2 border-primary bg-primary-light/40 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-light"
+            >
+              Ver turnos a generar (US-08)
+            </button>
+          )}
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
