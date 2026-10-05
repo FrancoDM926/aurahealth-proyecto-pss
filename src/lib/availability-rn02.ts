@@ -1,4 +1,8 @@
-/** RN-02: entre 2 y 7 jornadas por semana (lun–dom), solo semanas con ≥3 días hábiles (lun–vie) en el mes. */
+/**
+ * RN-02: entre un mínimo y un máximo de jornadas por semana (lun–dom), solo en
+ * semanas con ≥3 días hábiles (lun–vie) dentro del mes. Los límites los
+ * configura el administrador (US-06); 2 y 7 son los valores iniciales.
+ */
 
 export type JornadaInput = {
   date: string; // YYYY-MM-DD
@@ -14,8 +18,10 @@ export type WeekValidation = {
   errorType?: "too_few" | "too_many";
 };
 
-const MIN_JORNADAS = 2;
-const MAX_JORNADAS = 7;
+export type LimitesJornadas = { min: number; max: number };
+
+export const LIMITES_JORNADAS_DEFAULT: LimitesJornadas = { min: 2, max: 7 };
+
 const MIN_BUSINESS_DAYS = 3;
 
 function parseDateOnly(iso: string): Date {
@@ -77,7 +83,8 @@ function weekLabel(monday: Date, year: number, month: number): string {
 export function validateMonthlyJornadasRN02(
   jornadas: JornadaInput[],
   year: number,
-  month: number
+  month: number,
+  limites: LimitesJornadas = LIMITES_JORNADAS_DEFAULT
 ): { weeks: WeekValidation[]; isValid: boolean; blockingMessages: string[] } {
   const jornadaDates = jornadas.map((j) => parseDateOnly(j.date));
 
@@ -120,19 +127,19 @@ export function validateMonthlyJornadasRN02(
     let errorType: WeekValidation["errorType"];
 
     if (applies) {
-      if (jornadaCount < MIN_JORNADAS) {
+      if (jornadaCount < limites.min) {
         valid = false;
         errorType = "too_few";
         const sample = formatDateAr(monday.toISOString().slice(0, 10));
         blockingMessages.push(
-          `La semana del ${sample} tiene ${jornadaCount} jornada${jornadaCount === 1 ? "" : "s"}. Seleccioná al menos ${MIN_JORNADAS} para continuar.`
+          `La semana del ${sample} tiene ${jornadaCount} jornada${jornadaCount === 1 ? "" : "s"}. Seleccioná al menos ${limites.min} para continuar.`
         );
-      } else if (jornadaCount > MAX_JORNADAS) {
+      } else if (jornadaCount > limites.max) {
         valid = false;
         errorType = "too_many";
         const sample = formatDateAr(monday.toISOString().slice(0, 10));
         blockingMessages.push(
-          `La semana del ${sample} tiene ${jornadaCount} jornadas. El máximo permitido es ${MAX_JORNADAS}.`
+          `La semana del ${sample} tiene ${jornadaCount} jornadas. El máximo permitido es ${limites.max}.`
         );
       }
     }
@@ -153,3 +160,76 @@ export function validateMonthlyJornadasRN02(
 }
 
 export const SLOT_DURATION_MINUTES = 30;
+
+/** Valida los límites que carga el administrador. Devuelve el error o null. */
+export function validarLimitesJornadas(limites: LimitesJornadas): string | null {
+  const { min, max } = limites;
+  if (!Number.isInteger(min) || !Number.isInteger(max)) {
+    return "Los límites tienen que ser números enteros.";
+  }
+  if (min < 1 || max > 7) {
+    return "Los límites tienen que estar entre 1 y 7 jornadas por semana.";
+  }
+  if (min > max) {
+    return "El mínimo no puede ser mayor que el máximo.";
+  }
+  return null;
+}
+
+/** Fecha de hoy ("YYYY-MM-DD") en la hora de la sala, no la del servidor. */
+export function todayInArgentina(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/** US-06: una franja no puede cargarse sobre una fecha ya pasada. */
+export function isPastDate(date: string, today: string): boolean {
+  return date < today;
+}
+
+/** Paso de los horarios que se ofrecen al elegir una franja. */
+export const FRANJA_STEP_MINUTES = 15;
+
+function minutesToHHMM(total: number): string {
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function hhmmToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** Horarios posibles para el inicio de una franja: deja lugar a un turno completo. */
+export function opcionesHoraInicio(): string[] {
+  const out: string[] = [];
+  for (let t = 0; t + SLOT_DURATION_MINUTES <= 24 * 60 - FRANJA_STEP_MINUTES; t += FRANJA_STEP_MINUTES) {
+    out.push(minutesToHHMM(t));
+  }
+  return out;
+}
+
+/**
+ * Horarios posibles para el fin de una franja: solo posteriores al inicio y con
+ * al menos un turno completo de 30 minutos. Así no se puede elegir una franja
+ * "al revés" (ej. de 19:00 a 14:00).
+ */
+export function opcionesHoraFin(inicio: string): string[] {
+  const out: string[] = [];
+  for (
+    let t = hhmmToMinutes(inicio) + SLOT_DURATION_MINUTES;
+    t <= 24 * 60 - FRANJA_STEP_MINUTES;
+    t += FRANJA_STEP_MINUTES
+  ) {
+    out.push(minutesToHHMM(t));
+  }
+  return out;
+}
+
+/** Minutos sobrantes de la franja que no llegan a formar un turno (US-08). */
+export function minutosSobrantes(inicio: string, fin: string): number {
+  return (hhmmToMinutes(fin) - hhmmToMinutes(inicio)) % SLOT_DURATION_MINUTES;
+}

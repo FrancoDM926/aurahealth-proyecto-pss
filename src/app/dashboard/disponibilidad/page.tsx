@@ -2,6 +2,8 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { MonthlyAvailabilityForm } from "@/components/monthly-availability-form";
 import { getMonthlyAvailability } from "@/actions/availability";
 import { requireRoles } from "@/lib/auth-session";
+import { todayInArgentina } from "@/lib/availability-rn02";
+import { getLimitesJornadas } from "@/lib/configuracion";
 
 type PageProps = {
   searchParams: Promise<{ year?: string; month?: string }>;
@@ -27,7 +29,10 @@ export default async function DisponibilidadPage({ searchParams }: PageProps) {
   const year = params.year ? Number(params.year) : now.getFullYear();
   const month = params.month ? Number(params.month) : now.getMonth() + 1;
 
-  const availability = await getMonthlyAvailability(year, month);
+  const [availability, limites] = await Promise.all([
+    getMonthlyAvailability(year, month),
+    getLimitesJornadas(),
+  ]);
   const initialJornadas =
     availability?.jornadas.map((j) => ({
       date: formatUtcDateOnly(j.date),
@@ -58,6 +63,8 @@ export default async function DisponibilidadPage({ searchParams }: PageProps) {
             initialYear={year}
             initialMonth={month}
             initialJornadas={initialJornadas}
+            limites={limites}
+            today={todayInArgentina()}
           />
         </div>
       </div>

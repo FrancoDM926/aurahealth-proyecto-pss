@@ -5,9 +5,13 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { assertRoles } from "@/lib/auth-session";
 import {
+  isPastDate,
+  SLOT_DURATION_MINUTES,
+  todayInArgentina,
   validateMonthlyJornadasRN02,
   type JornadaInput,
 } from "@/lib/availability-rn02";
+import { getLimitesJornadas } from "@/lib/configuracion";
 
 export type ActionResult = {
   success: boolean;
@@ -46,11 +50,51 @@ function validateJornadaTimes(jornadas: JornadaPayload[]): Record<string, string
       continue;
     }
     if (end <= start) {
-      errors[j.date] = "La hora de fin debe ser posterior al inicio.";
+      errors[j.date] = "La hora de fin debe ser posterior a la de inicio.";
       continue;
     }
-    if ((end - start) % 30 !== 0) {
-      errors[j.date] = "La franja debe dividirse en bloques de 30 minutos (RN-09).";
+    // Un sobrante menor a 30 minutos se descarta al generar (US-08), pero la
+    // franja tiene que alcanzar al menos para un turno completo.
+    if (end - start < SLOT_DURATION_MINUTES) {
+      errors[j.date] = `La franja tiene que durar al menos ${SLOT_DURATION_MINUTES} minutos.`;
+    }
+  }
+  return errors;
+}
+
+function formatDateAr(iso: string): string {
+  return iso.split("-").reverse().join("/");
+}
+
+/**
+ * US-06: no se cargan franjas sobre fechas pasadas ni fuera del mes elegido.
+ * Las jornadas pasadas que ya estaban guardadas sin cambios se aceptan, para
+ * que el médico pueda seguir editando el resto del mes en curso.
+ */
+function validateJornadaDates(
+  jornadas: JornadaPayload[],
+  year: number,
+  month: number,
+  persisted: Map<string, { startTime: string; endTime: string }>
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const today = todayInArgentina();
+  const monthPrefix = `${year}-${String(month).padStart(2, "0")}-`;
+
+  for (const j of jornadas) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(j.date) || !j.date.startsWith(monthPrefix)) {
+      errors[j.date] = "La fecha no pertenece al mes seleccionado.";
+      continue;
+    }
+    if (isPastDate(j.date, today)) {
+      const saved = persisted.get(j.date);
+      const unchanged =
+        saved &&
+        saved.startTime === normalizeTime(j.startTime) &&
+        saved.endTime === normalizeTime(j.endTime);
+      if (!unchanged) {
+        errors[j.date] = `El ${formatDateAr(j.date)} ya pasó: no se pueden cargar franjas en fechas pasadas.`;
+      }
     }
   }
   return errors;
@@ -120,25 +164,42 @@ export async function saveMonthlyAvailability(
     return { success: false, message: "Período inválido." };
   }
 
-  const timeErrors = validateJornadaTimes(jornadas);
-  if (Object.keys(timeErrors).length > 0) {
+  const existing = await db.monthlyAvailability.findUnique({
+    where: { userId_year_month: { userId: user.id, year, month } },
+    include: { jornadas: true },
+  });
+  const persisted = new Map(
+    (existing?.jornadas ?? []).map((j) => [
+      j.date.toISOString().slice(0, 10),
+      { startTime: j.startTime, endTime: j.endTime },
+    ])
+  );
+
+  const fieldErrors = {
+    ...validateJornadaTimes(jornadas),
+    ...validateJornadaDates(jornadas, year, month, persisted),
+  };
+  if (Object.keys(fieldErrors).length > 0) {
     return {
       success: false,
-      message: "Revisá los horarios de las jornadas.",
-      errors: timeErrors,
+      message: Object.values(fieldErrors).join(" "),
+      errors: fieldErrors,
     };
   }
 
+  const limites = await getLimitesJornadas();
   const rn02 = validateMonthlyJornadasRN02(
     jornadas.map((j) => ({ date: j.date })),
     year,
-    month
+    month,
+    limites
   );
 
   if (!rn02.isValid) {
+    // US-06: se informan todas las semanas que incumplen, no solo la primera.
     return {
       success: false,
-      message: rn02.blockingMessages[0] || "La disponibilidad no cumple RN-02.",
+      message: rn02.blockingMessages.join(" ") || "La disponibilidad no cumple RN-02.",
     };
   }
 
@@ -186,5 +247,5 @@ export async function computeWeekValidations(
   month: number,
   jornadas: JornadaInput[]
 ) {
-  return validateMonthlyJornadasRN02(jornadas, year, month);
+  return validateMonthlyJornadasRN02(jornadas, year, month, await getLimitesJornadas());
 }

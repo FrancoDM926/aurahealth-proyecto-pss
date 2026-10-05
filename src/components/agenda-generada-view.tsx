@@ -37,8 +37,6 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
 
     try {
       const result = await generateTurnosAction({
-        doctorId: data.doctorId,
-        franjas: data.franjasRaw,
         month: data.month,
         year: data.year,
       });
@@ -48,9 +46,11 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
       } else {
         setErrorMsg(result.message || "No se pudieron generar los turnos.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMsg(
-        err?.message || "Ocurrió un error inesperado al generar los turnos."
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error inesperado al generar los turnos."
       );
     } finally {
       setLoading(false);
@@ -60,6 +60,37 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
   const toggleExpand = (index: number) => {
     setExpandedFranjaIndex((prev) => (prev === index ? null : index));
   };
+
+  // Sin disponibilidad cargada no hay nada que generar: los turnos salen
+  // únicamente de lo que el médico declaró en US-06.
+  if (!data.hasAvailability) {
+    return (
+      <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <span className="inline-block text-xs font-bold uppercase tracking-wider text-primary">
+          ■ US-08 · Generación automática de turnos · Sprint 1
+        </span>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+          Agenda médica — Vista previa de generación
+        </h1>
+        <hr className="my-6 border-t-2 border-ink" />
+        <section className="rounded-xl border-2 border-ink bg-surface p-5 text-sm text-ink sm:p-6">
+          <p className="font-semibold">
+            No cargaste disponibilidad para {data.monthLabel.toLowerCase()}.
+          </p>
+          <p className="mt-1 text-ink-secondary">
+            Los turnos se generan a partir de los días y franjas que declarás en
+            «Disponibilidad».
+          </p>
+          <Link
+            href={`/dashboard/disponibilidad?year=${data.year}&month=${data.month}`}
+            className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+          >
+            Cargar disponibilidad
+          </Link>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -117,14 +148,25 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
             </p>
           </div>
 
-          <div className="rounded-lg border border-dashed border-emerald-400 bg-emerald-50/60 p-4 text-center sm:text-left">
-            <strong className="text-2xl font-bold text-emerald-800">
-              {data.summary.minJornadasSemana} a {data.summary.maxJornadasSemana}
-            </strong>
-            <p className="mt-1 text-xs text-emerald-800 font-medium">
-              jornadas por semana validadas (RN-02)
-            </p>
-          </div>
+          {data.summary.jornadasValidadas ? (
+            <div className="rounded-lg border border-dashed border-emerald-400 bg-emerald-50/60 p-4 text-center sm:text-left">
+              <strong className="text-2xl font-bold text-emerald-800">
+                {data.summary.minJornadasSemana} a {data.summary.maxJornadasSemana}
+              </strong>
+              <p className="mt-1 text-xs text-emerald-800 font-medium">
+                jornadas por semana validadas (RN-02)
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-red-300 bg-red-50 p-4 text-center sm:text-left">
+              <strong className="text-2xl font-bold text-red-800">
+                {data.summary.minJornadasSemana} a {data.summary.maxJornadasSemana}
+              </strong>
+              <p className="mt-1 text-xs text-red-800 font-medium">
+                jornadas por semana: la disponibilidad no cumple RN-02. Volvé a editarla.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -243,7 +285,7 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={loading}
+            disabled={loading || !data.summary.jornadasValidadas}
             className="inline-flex min-h-[38px] items-center justify-center rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-50 cursor-pointer shadow-sm"
           >
             {loading ? (

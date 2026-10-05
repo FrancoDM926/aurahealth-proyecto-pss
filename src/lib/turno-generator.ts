@@ -49,9 +49,6 @@ export type FranjaPreview = {
 export type GenerationSummary = {
   totalJornadas: number;
   totalTurnos: number;
-  jornadasValidadas: boolean;
-  minJornadasSemana: number;
-  maxJornadasSemana: number;
 };
 
 /**
@@ -222,9 +219,6 @@ export function generateTurnosFromFranjasList(
   const summary: GenerationSummary = {
     totalJornadas: previews.length,
     totalTurnos: turnos.length,
-    jornadasValidadas: true,
-    minJornadasSemana: 2,
-    maxJornadasSemana: 7,
   };
 
   return { turnos, previews, summary };

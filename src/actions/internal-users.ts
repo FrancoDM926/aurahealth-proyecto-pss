@@ -155,7 +155,6 @@ export async function createInternalUser(
   }
 
   const { firstName, lastName } = splitFullName(data.fullName);
-  const docNumber = `INT-${randomBytes(4).toString("hex").toUpperCase()}`;
 
   try {
     const client = await clerkClient();
@@ -178,10 +177,9 @@ export async function createInternalUser(
           email,
           firstName,
           lastName,
+          // Documento, nacimiento y teléfono quedan vacíos: el usuario los
+          // completa desde "Mi cuenta". No se inventan datos.
           docType: "DNI",
-          docNumber,
-          birthDate: new Date("1990-01-01T00:00:00.000Z"),
-          phone: "Pendiente",
           coverageType: "PARTICULAR",
           role: data.role,
           specialty: data.role === "MEDICO" ? data.specialty! : null,

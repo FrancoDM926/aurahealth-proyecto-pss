@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
   updateUserProfile,
@@ -15,9 +16,10 @@ type UserData = {
   firstName: string;
   lastName: string;
   docType: string;
-  docNumber: string;
-  birthDate: Date | string;
-  phone: string;
+  // Vacíos en usuarios internos recién creados: se completan acá una sola vez.
+  docNumber: string | null;
+  birthDate: Date | string | null;
+  phone: string | null;
   address: string | null;
   alternativeContact: string | null;
   coverageType: string;
@@ -29,8 +31,14 @@ type UserData = {
 
 export function MisDatosForm({ user }: { user: UserData }) {
   const { user: clerkUser } = useUser();
+  const router = useRouter();
+  const missingDoc = !user.docNumber;
+  const missingBirthDate = !user.birthDate;
 
   const [formData, setFormData] = useState({
+    docType: user.docType || "DNI",
+    docNumber: "",
+    birthDate: "",
     phone: user.phone || "",
     email: user.email || "",
     address: user.address || "",
@@ -57,12 +65,14 @@ export function MisDatosForm({ user }: { user: UserData }) {
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
 
-  const formattedBirthDate = new Date(user.birthDate).toLocaleDateString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  const formattedBirthDate = user.birthDate
+    ? new Date(user.birthDate).toLocaleDateString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : "";
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -140,6 +150,11 @@ export function MisDatosForm({ user }: { user: UserData }) {
         }
         setLoading(false);
         return;
+      }
+
+      // Si se completó el documento o el nacimiento, se recarga para mostrarlos bloqueados.
+      if ((missingDoc && formData.docNumber.trim()) || (missingBirthDate && formData.birthDate)) {
+        router.refresh();
       }
 
       // 2. Si el email cambió, iniciar flujo OTP en Clerk
@@ -573,24 +588,88 @@ export function MisDatosForm({ user }: { user: UserData }) {
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-ink-secondary">
-                Documento
-              </label>
-              <div className="mt-1 block w-full rounded-lg border border-line bg-gray-100 px-3 py-2 text-sm font-semibold text-ink">
-                {user.docType} {user.docNumber}
+            {missingDoc ? (
+              <div>
+                <label htmlFor="docNumber" className="block text-sm font-medium text-ink">
+                  Documento
+                </label>
+                <div className="mt-1 flex gap-2">
+                  <select
+                    name="docType"
+                    aria-label="Tipo de documento"
+                    value={formData.docType}
+                    onChange={handleChange}
+                    className="rounded-lg border border-line bg-background px-2 py-2 text-sm text-ink"
+                  >
+                    <option value="DNI">DNI</option>
+                    <option value="LC">LC</option>
+                    <option value="LE">LE</option>
+                    <option value="PASAPORTE">Pasaporte</option>
+                  </select>
+                  <input
+                    id="docNumber"
+                    name="docNumber"
+                    type="text"
+                    placeholder="Número"
+                    value={formData.docNumber}
+                    onChange={handleChange}
+                    className={`block w-full rounded-lg border bg-background px-3 py-2 text-sm text-ink ${
+                      fieldErrors.docNumber ? "border-red-500" : "border-line"
+                    }`}
+                  />
+                </div>
+                {fieldErrors.docNumber && (
+                  <p className="mt-1 text-xs text-red-600">{fieldErrors.docNumber}</p>
+                )}
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-ink-secondary">
+                  Documento
+                </label>
+                <div className="mt-1 block w-full rounded-lg border border-line bg-gray-100 px-3 py-2 text-sm font-semibold text-ink">
+                  {user.docType} {user.docNumber}
+                </div>
+              </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-ink-secondary">
-                Fecha de nacimiento
-              </label>
-              <div className="mt-1 block w-full rounded-lg border border-line bg-gray-100 px-3 py-2 text-sm font-semibold text-ink">
-                {formattedBirthDate}
+            {missingBirthDate ? (
+              <div>
+                <label htmlFor="birthDate" className="block text-sm font-medium text-ink">
+                  Fecha de nacimiento
+                </label>
+                <input
+                  id="birthDate"
+                  name="birthDate"
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={handleChange}
+                  className={`mt-1 block w-full rounded-lg border bg-background px-3 py-2 text-sm text-ink ${
+                    fieldErrors.birthDate ? "border-red-500" : "border-line"
+                  }`}
+                />
+                {fieldErrors.birthDate && (
+                  <p className="mt-1 text-xs text-red-600">{fieldErrors.birthDate}</p>
+                )}
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-ink-secondary">
+                  Fecha de nacimiento
+                </label>
+                <div className="mt-1 block w-full rounded-lg border border-line bg-gray-100 px-3 py-2 text-sm font-semibold text-ink">
+                  {formattedBirthDate}
+                </div>
+              </div>
+            )}
           </div>
+
+          {(missingDoc || missingBirthDate) && (
+            <p className="mt-4 text-xs font-medium text-ink">
+              Completá los datos que faltan. Una vez guardados, el documento y la fecha de
+              nacimiento ya no se pueden modificar.
+            </p>
+          )}
 
           <p className="mt-4 text-xs text-ink-secondary">
             🔒 Documento y fecha de nacimiento no son editables por el usuario: requieren intervención administrativa. Se muestran como texto, sin control de edición.
