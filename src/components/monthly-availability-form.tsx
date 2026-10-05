@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { saveMonthlyAvailability, type JornadaPayload } from "@/actions/availability";
 import {
   isPastDate,
-  minutosSobrantes,
   opcionesHoraFin,
   opcionesHoraInicio,
   SLOT_DURATION_MINUTES,
@@ -338,12 +337,6 @@ export function MonthlyAvailabilityForm({
                 Quitar día
               </button>
             </div>
-            {minutosSobrantes(draftStart, draftEnd) > 0 && (
-              <p className="mt-3 text-xs text-ink-secondary">
-                Los últimos {minutosSobrantes(draftStart, draftEnd)} minutos no alcanzan para un
-                turno de {SLOT_DURATION_MINUTES} minutos y no se van a ofrecer.
-              </p>
-            )}
           </div>
         )}
 

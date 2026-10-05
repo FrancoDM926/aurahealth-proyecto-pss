@@ -191,8 +191,11 @@ export function isPastDate(date: string, today: string): boolean {
   return date < today;
 }
 
-/** Paso de los horarios que se ofrecen al elegir una franja. */
-export const FRANJA_STEP_MINUTES = 15;
+/**
+ * Los horarios de una franja van de 30 en 30 (en punto o y media), igual que
+ * los turnos (RN-09): así cada franja se divide en turnos completos.
+ */
+export const FRANJA_STEP_MINUTES = SLOT_DURATION_MINUTES;
 
 function minutesToHHMM(total: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
@@ -201,6 +204,11 @@ function minutesToHHMM(total: number): string {
 function hhmmToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
+}
+
+/** Un horario es válido para una franja si cae en punto o y media. */
+export function esHorarioDeGrilla(time: string): boolean {
+  return /^\d{2}:\d{2}$/.test(time) && hhmmToMinutes(time) % FRANJA_STEP_MINUTES === 0;
 }
 
 /** Horarios posibles para el inicio de una franja: deja lugar a un turno completo. */
@@ -227,9 +235,4 @@ export function opcionesHoraFin(inicio: string): string[] {
     out.push(minutesToHHMM(t));
   }
   return out;
-}
-
-/** Minutos sobrantes de la franja que no llegan a formar un turno (US-08). */
-export function minutosSobrantes(inicio: string, fin: string): number {
-  return (hhmmToMinutes(fin) - hhmmToMinutes(inicio)) % SLOT_DURATION_MINUTES;
 }

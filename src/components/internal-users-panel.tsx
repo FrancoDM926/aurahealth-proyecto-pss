@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   createInternalUser,
   deactivateInternalUser,
+  updateInternalUser,
+  type UpdateInternalUserInput,
 } from "@/actions/internal-users";
 import type { MedicalSpecialty, Role } from "@/generated/prisma/client";
 import type { InternalUserListItem } from "@/actions/internal-users";
@@ -26,6 +28,56 @@ export function InternalUsersPanel({ users }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<InternalUserListItem | null>(null);
+  const [editForm, setEditForm] = useState<UpdateInternalUserInput | null>(null);
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = (user: InternalUserListItem) => {
+    setMessage(null);
+    setEditErrors({});
+    setEditing(user);
+    setEditForm({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      specialty: user.specialty,
+      docType: user.docType || "DNI",
+      docNumber: user.docNumber ?? "",
+      birthDate: user.birthDate ?? "",
+      phone: user.phone ?? "",
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setEditForm(null);
+    setEditErrors({});
+  };
+
+  const setField = <K extends keyof UpdateInternalUserInput>(
+    key: K,
+    value: UpdateInternalUserInput[K]
+  ) => setEditForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editing || !editForm) return;
+    setSaving(true);
+    setEditErrors({});
+    const result = await updateInternalUser(editing.id, {
+      ...editForm,
+      specialty: editForm.role === "MEDICO" ? editForm.specialty : null,
+    });
+    setSaving(false);
+    setMessage(result.message ?? null);
+    if (!result.success) {
+      setEditErrors(result.errors ?? {});
+      return;
+    }
+    cancelEdit();
+    router.refresh();
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,14 +266,23 @@ export function InternalUsersPanel({ users }: Props) {
                   </td>
                   <td className="py-3">
                     {user.isActive && user.role !== "ADMINISTRADOR" ? (
-                      <button
-                        type="button"
-                        onClick={() => handleDeactivate(user)}
-                        disabled={deactivatingId === user.id}
-                        className="rounded-lg border border-error/40 px-3 py-1.5 text-xs font-semibold text-error hover:bg-error/5 disabled:opacity-60"
-                      >
-                        Dar de baja
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(user)}
+                          className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-background"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeactivate(user)}
+                          disabled={deactivatingId === user.id}
+                          className="rounded-lg border border-error/40 px-3 py-1.5 text-xs font-semibold text-error hover:bg-error/5 disabled:opacity-60"
+                        >
+                          Dar de baja
+                        </button>
+                      </div>
                     ) : (
                       <span className="text-xs text-ink-muted">—</span>
                     )}
@@ -236,6 +297,170 @@ export function InternalUsersPanel({ users }: Props) {
           La baja solicita confirmación y conserva trazabilidad según la regla de negocio.
         </p>
       </section>
+
+      {editing && editForm && (
+        <section className="rounded-xl border-2 border-primary/40 bg-surface p-6">
+          <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+            3 · Edición
+          </span>
+          <h2 className="mt-2 text-lg font-bold text-ink">
+            Editar a {editing.firstName} {editing.lastName}
+          </h2>
+
+          <form onSubmit={handleUpdate} className="mt-6 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink" htmlFor="edit-firstName">
+                  Nombre
+                </label>
+                <input
+                  id="edit-firstName"
+                  className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+                  value={editForm.firstName}
+                  onChange={(e) => setField("firstName", e.target.value)}
+                />
+                {editErrors.firstName && (
+                  <p className="mt-1 text-xs text-error">{editErrors.firstName}</p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink" htmlFor="edit-lastName">
+                  Apellido
+                </label>
+                <input
+                  id="edit-lastName"
+                  className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+                  value={editForm.lastName}
+                  onChange={(e) => setField("lastName", e.target.value)}
+                />
+                {editErrors.lastName && (
+                  <p className="mt-1 text-xs text-error">{editErrors.lastName}</p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink" htmlFor="edit-role">
+                  Rol
+                </label>
+                <select
+                  id="edit-role"
+                  className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+                  value={editForm.role}
+                  onChange={(e) => setField("role", e.target.value as Role)}
+                >
+                  {CREATABLE_ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </select>
+                {editErrors.role && <p className="mt-1 text-xs text-error">{editErrors.role}</p>}
+              </div>
+              {editForm.role === "MEDICO" && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-ink" htmlFor="edit-specialty">
+                    Especialidad
+                  </label>
+                  <select
+                    id="edit-specialty"
+                    className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+                    value={editForm.specialty ?? ""}
+                    onChange={(e) =>
+                      setField("specialty", (e.target.value || null) as MedicalSpecialty | null)
+                    }
+                  >
+                    <option value="">Seleccionar especialidad</option>
+                    {(Object.keys(SPECIALTY_LABELS) as MedicalSpecialty[]).map((s) => (
+                      <option key={s} value={s}>
+                        {SPECIALTY_LABELS[s]}
+                      </option>
+                    ))}
+                  </select>
+                  {editErrors.specialty && (
+                    <p className="mt-1 text-xs text-error">{editErrors.specialty}</p>
+                  )}
+                </div>
+              )}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink" htmlFor="edit-docNumber">
+                  Documento
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    aria-label="Tipo de documento"
+                    className="rounded-lg border border-line bg-background px-2 py-2 text-sm"
+                    value={editForm.docType}
+                    onChange={(e) => setField("docType", e.target.value)}
+                  >
+                    <option value="DNI">DNI</option>
+                    <option value="LC">LC</option>
+                    <option value="LE">LE</option>
+                    <option value="PASAPORTE">Pasaporte</option>
+                  </select>
+                  <input
+                    id="edit-docNumber"
+                    className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+                    placeholder="Sin cargar"
+                    value={editForm.docNumber}
+                    onChange={(e) => setField("docNumber", e.target.value)}
+                  />
+                </div>
+                {editErrors.docNumber && (
+                  <p className="mt-1 text-xs text-error">{editErrors.docNumber}</p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink" htmlFor="edit-birthDate">
+                  Fecha de nacimiento
+                </label>
+                <input
+                  id="edit-birthDate"
+                  type="date"
+                  className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+                  value={editForm.birthDate}
+                  onChange={(e) => setField("birthDate", e.target.value)}
+                />
+                {editErrors.birthDate && (
+                  <p className="mt-1 text-xs text-error">{editErrors.birthDate}</p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink" htmlFor="edit-phone">
+                  Teléfono
+                </label>
+                <input
+                  id="edit-phone"
+                  className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+                  placeholder="Sin cargar"
+                  value={editForm.phone}
+                  onChange={(e) => setField("phone", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-ink-secondary">
+              El correo no se edita desde acá: cada usuario lo cambia en «Mi cuenta» con
+              verificación por código.
+            </p>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60"
+              >
+                {saving ? "Guardando…" : "Guardar cambios"}
+              </button>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="rounded-lg border border-line px-4 py-2 text-sm font-medium"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { assertRoles } from "@/lib/auth-session";
 import {
+  esHorarioDeGrilla,
   isPastDate,
   SLOT_DURATION_MINUTES,
   todayInArgentina,
@@ -53,10 +54,10 @@ function validateJornadaTimes(jornadas: JornadaPayload[]): Record<string, string
       errors[j.date] = "La hora de fin debe ser posterior a la de inicio.";
       continue;
     }
-    // Un sobrante menor a 30 minutos se descarta al generar (US-08), pero la
-    // franja tiene que alcanzar al menos para un turno completo.
-    if (end - start < SLOT_DURATION_MINUTES) {
-      errors[j.date] = `La franja tiene que durar al menos ${SLOT_DURATION_MINUTES} minutos.`;
+    // Los turnos son de 30 minutos (RN-09): la franja empieza y termina en
+    // punto o y media, así se divide en turnos completos.
+    if (!esHorarioDeGrilla(normalizeTime(j.startTime)) || !esHorarioDeGrilla(normalizeTime(j.endTime))) {
+      errors[j.date] = `Los horarios van de ${SLOT_DURATION_MINUTES} en ${SLOT_DURATION_MINUTES} minutos (en punto o y media).`;
     }
   }
   return errors;

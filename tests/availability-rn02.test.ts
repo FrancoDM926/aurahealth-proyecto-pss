@@ -2,9 +2,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  esHorarioDeGrilla,
   isPastDate,
   LIMITES_JORNADAS_DEFAULT,
-  minutosSobrantes,
   opcionesHoraFin,
   opcionesHoraInicio,
   todayInArgentina,
@@ -43,9 +43,18 @@ describe("US-06 — horarios de la franja", () => {
     }
   });
 
-  it("los minutos que no llegan a un turno se informan como sobrante (US-08)", () => {
-    assert.equal(minutosSobrantes("08:00", "12:45"), 15);
-    assert.equal(minutosSobrantes("08:00", "13:00"), 0);
+  it("los horarios van de 30 en 30: no existen 15 ni 45", () => {
+    const todos = [...opcionesHoraInicio(), ...opcionesHoraFin("08:00")];
+    assert.ok(todos.every((h) => h.endsWith(":00") || h.endsWith(":30")));
+    assert.ok(!todos.includes("08:15"));
+    assert.ok(!todos.includes("12:45"));
+  });
+
+  it("el servidor reconoce los horarios fuera de la grilla", () => {
+    assert.equal(esHorarioDeGrilla("08:00"), true);
+    assert.equal(esHorarioDeGrilla("08:30"), true);
+    assert.equal(esHorarioDeGrilla("08:15"), false);
+    assert.equal(esHorarioDeGrilla("12:45"), false);
   });
 });
 
