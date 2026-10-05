@@ -369,7 +369,7 @@ export async function createInternalUser(
     return {
       success: true,
       message:
-        "Usuario interno creado. Para ingresar por primera vez, debe usar «¿Olvidaste tu contraseña?» en la pantalla de inicio de sesión.",
+        "Usuario interno creado. Deberá establecer su contraseña desde el correo de bienvenida de Clerk.",
     };
   } catch (error: unknown) {
     console.error("createInternalUser:", error);
