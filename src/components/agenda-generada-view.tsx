@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AgendaPreviewData,
   generateTurnosAction,
@@ -13,6 +14,7 @@ interface AgendaGeneradaViewProps {
 }
 
 export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
+  const router = useRouter();
   const [data] = useState<AgendaPreviewData>(initialData);
   const [loading, setLoading] = useState(false);
   const [generationResult, setGenerationResult] = useState<GenerateTurnosResult | null>(
@@ -43,6 +45,9 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
 
       if (result.success) {
         setGenerationResult(result);
+        // "Generar y abrir agenda" (wireframe): abre la agenda del profesional (US-11) en ese mes.
+        const mm = String(data.month).padStart(2, "0");
+        router.push(`/dashboard/agenda?vista=mes&fecha=${data.year}-${mm}-01`);
       } else {
         setErrorMsg(result.message || "No se pudieron generar los turnos.");
       }
