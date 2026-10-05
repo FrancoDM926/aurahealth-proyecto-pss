@@ -5,7 +5,6 @@ import {
   agruparPorDia,
   esFechaValida,
   etiquetaPeriodo,
-  horariosDe,
   huecosLibres,
   inicioDeSemana,
   moverPeriodo,
@@ -39,11 +38,12 @@ describe("US-11 — períodos de las tres vistas", () => {
   it("el mes va del 1 al último día, incluido febrero bisiesto", () => {
     assert.deepEqual(rangoDeVista("mes", "2026-10-15"), { desde: "2026-10-01", hasta: "2026-10-31" });
     assert.deepEqual(rangoDeVista("mes", "2028-02-10"), { desde: "2028-02-01", hasta: "2028-02-29" });
-    assert.equal(etiquetaPeriodo("mes", "2026-10-15"), "Octubre 2026");
+    assert.equal(etiquetaPeriodo("mes", "2026-10-15"), "octubre 2026");
   });
 
-  it("el día lleva el nombre completo", () => {
-    assert.equal(etiquetaPeriodo("dia", "2026-10-05"), "Lunes 05 de octubre de 2026");
+  it("los textos del período coinciden con el selector «Vista» del wireframe", () => {
+    assert.equal(etiquetaPeriodo("dia", "2026-10-05"), "05 de octubre de 2026");
+    assert.equal(etiquetaPeriodo("mes", "2026-10-05"), "octubre 2026");
   });
 
   it("navega entre períodos sin saltear ninguno", () => {
@@ -106,22 +106,11 @@ describe("US-11 — vista diaria", () => {
   });
 });
 
-describe("US-11 — filtro «Mostrar» y grilla semanal", () => {
+describe("US-11 — filtro «Mostrar»", () => {
   it("filtra libres y reservados", () => {
     assert.equal(pasaFiltro(t("08:00", "08:30", "DISPONIBLE"), "libres"), true);
     assert.equal(pasaFiltro(t("08:00", "08:30", "RESERVADO"), "libres"), false);
     assert.equal(pasaFiltro(t("08:00", "08:30", "RESERVADO"), "reservados"), true);
     assert.equal(pasaFiltro(t("08:00", "08:30", "CUMPLIDO"), "todos"), true);
-  });
-
-  it("las filas de la grilla son los horarios distintos, en orden", () => {
-    assert.deepEqual(
-      horariosDe([
-        t("09:00", "09:30", "DISPONIBLE"),
-        t("08:00", "08:30", "DISPONIBLE", "2026-10-06"),
-        t("08:00", "08:30", "RESERVADO"),
-      ]),
-      ["08:00", "09:00"]
-    );
   });
 });

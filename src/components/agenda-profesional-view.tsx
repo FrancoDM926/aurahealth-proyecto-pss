@@ -10,7 +10,6 @@ import {
   etiquetaDia,
   etiquetaPeriodo,
   FILTRO_LABELS,
-  horariosDe,
   huecosLibres,
   inicioDeSemana,
   moverPeriodo,
@@ -62,42 +61,32 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-        US-11 · Vista de agenda profesional
+        US-11 · Vista de agenda profesional · Sprint 1
       </span>
       <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">Mi agenda — {doctorName}</h1>
 
-      {/* 1 · Período (wireframe: bloque "Filtros") */}
+      {/* Período de consulta: "Vista" y "Mostrar" lado a lado, como el wireframe */}
       <section className="mt-8 rounded-xl border-2 border-line bg-surface p-4 sm:p-6">
-        <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-          1 · Período
-        </span>
-        <h2 className="mt-2 text-lg font-bold text-ink">Período de consulta</h2>
+        <h2 className="text-lg font-bold text-ink">Período de consulta</h2>
 
-        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <span className="mb-1 block text-sm font-medium">Vista</span>
-            <div
-              role="tablist"
-              aria-label="Vista"
-              className="grid grid-cols-3 overflow-hidden rounded-lg border border-line sm:inline-grid"
+            <label className="mb-1 block text-sm font-medium" htmlFor="vista">
+              Vista
+            </label>
+            {/* Como el wireframe: la vista y su período en el mismo selector. */}
+            <select
+              id="vista"
+              className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+              value={vista}
+              onChange={(e) => ir(e.target.value as VistaAgenda, fecha)}
             >
               {VISTAS.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  role="tab"
-                  aria-selected={vista === v}
-                  onClick={() => ir(v, fecha)}
-                  className={
-                    vista === v
-                      ? "bg-primary px-4 py-2 text-sm font-semibold text-white"
-                      : "bg-background px-4 py-2 text-sm font-medium text-ink-secondary hover:text-ink"
-                  }
-                >
-                  {VISTA_LABELS[v]}
-                </button>
+                <option key={v} value={v}>
+                  {VISTA_LABELS[v]} — {etiquetaPeriodo(v, fecha)}
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
           <div>
@@ -106,7 +95,7 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
             </label>
             <select
               id="mostrar"
-              className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm sm:w-auto"
+              className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
               value={filtro}
               onChange={(e) => setFiltro(e.target.value as FiltroAgenda)}
             >
@@ -118,11 +107,24 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
             </select>
           </div>
         </div>
+      </section>
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-base font-bold text-ink" aria-live="polite">
-            {VISTA_LABELS[vista]} — {etiquetaPeriodo(vista, fecha)}
-          </p>
+      {/* Agenda */}
+      <section
+        aria-busy={pending}
+        className={`mt-6 rounded-xl border-2 border-line bg-surface p-4 transition-opacity sm:p-6 ${
+          pending ? "opacity-60" : ""
+        }`}
+      >
+        {/* Título a la izquierda y navegación del período a la derecha. */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-ink" aria-live="polite">
+            {vista === "dia"
+              ? "Turnos del día"
+              : vista === "semana"
+                ? "Turnos de la semana"
+                : "Turnos del mes"}
+          </h2>
           <div className="flex gap-2">
             <button
               type="button"
@@ -150,29 +152,6 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
           </div>
         </div>
 
-        <ul className="mt-4 flex flex-wrap gap-2 text-xs font-semibold" aria-label="Estados">
-          {(Object.keys(ESTADO_LABELS) as EstadoTurnoAgenda[]).map((e) => (
-            <li key={e} className={`rounded-full border px-2 py-0.5 ${ESTADO_CLASES[e]}`}>
-              {ESTADO_LABELS[e]}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* 2 · Agenda */}
-      <section
-        aria-busy={pending}
-        className={`mt-6 rounded-xl border-2 border-line bg-surface p-4 transition-opacity sm:p-6 ${
-          pending ? "opacity-60" : ""
-        }`}
-      >
-        <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-          2 · Agenda
-        </span>
-        <h2 className="mt-2 text-lg font-bold text-ink">
-          {vista === "dia" ? "Turnos del día" : vista === "semana" ? "Turnos de la semana" : "Turnos del mes"}
-        </h2>
-
         <div className="mt-4">
           {turnos.length === 0 ? (
             <p className="py-6 text-center text-sm text-ink-secondary">
@@ -185,13 +164,7 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
           ) : vista === "dia" ? (
             <VistaDiaria turnos={porDia.get(fecha) ?? []} />
           ) : vista === "semana" ? (
-            <VistaSemanal
-              fecha={fecha}
-              hoy={hoy}
-              turnos={visibles}
-              porDia={porDia}
-              onDia={(d) => ir("dia", d)}
-            />
+            <VistaSemanal fecha={fecha} hoy={hoy} porDia={porDia} onDia={(d) => ir("dia", d)} />
           ) : (
             <VistaMensual fecha={fecha} hoy={hoy} porDia={porDia} onDia={(d) => ir("dia", d)} />
           )}
@@ -265,48 +238,42 @@ function VistaDiaria({ turnos }: { turnos: TurnoAgenda[] }) {
 }
 
 /**
- * Vista semanal. En pantallas medianas o más, grilla de horario por día como
- * el wireframe; en celular, una lista por día para no desbordar el ancho.
+ * Vista semanal: una columna por día con sus turnos (solo los días que tienen
+ * turnos, como el wireframe). En celular las columnas se apilan.
  */
 function VistaSemanal({
   fecha,
   hoy,
-  turnos,
   porDia,
   onDia,
 }: {
   fecha: string;
   hoy: string;
-  turnos: TurnoAgenda[];
   porDia: Map<string, TurnoAgenda[]>;
   onDia: (fecha: string) => void;
 }) {
-  // Como en el wireframe, solo las columnas de los días que tienen turnos.
   const dias = diasDelRango(rangoDeVista("semana", inicioDeSemana(fecha))).filter((d) =>
     porDia.has(d)
   );
-  const horarios = horariosDe(turnos);
-
-  const encabezado = (d: string) => {
-    const e = etiquetaDia(d);
-    return (
-      <button
-        type="button"
-        onClick={() => onDia(d)}
-        className={`font-semibold hover:text-primary ${d === hoy ? "text-primary" : "text-ink"}`}
-      >
-        {e.corto} {e.numero}
-      </button>
-    );
-  };
 
   return (
-    <>
-      {/* Celular: lista por día */}
-      <div className="space-y-4 md:hidden">
-        {dias.map((d) => (
-          <div key={d}>
-            <div className="mb-2 text-sm">{encabezado(d)}</div>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))]">
+      {dias.map((d) => {
+        const e = etiquetaDia(d);
+        return (
+          <div
+            key={d}
+            className={`rounded-lg border p-2 ${d === hoy ? "border-primary" : "border-line"}`}
+          >
+            <button
+              type="button"
+              onClick={() => onDia(d)}
+              className={`mb-2 w-full text-left text-sm font-semibold hover:text-primary ${
+                d === hoy ? "text-primary" : "text-ink"
+              }`}
+            >
+              {e.corto} {e.numero}
+            </button>
             <ul className="space-y-1.5">
               {(porDia.get(d) ?? []).map((t) => (
                 <li key={t.id}>
@@ -315,46 +282,9 @@ function VistaSemanal({
               ))}
             </ul>
           </div>
-        ))}
-      </div>
-
-      {/* Pantallas medianas o más: grilla del wireframe */}
-      <table className="hidden w-full table-fixed border-collapse text-sm md:table">
-        <thead>
-          <tr>
-            <th className="w-20 border-b border-line py-2 text-left text-xs font-semibold text-ink-secondary">
-              Hora
-            </th>
-            {dias.map((d) => (
-              <th key={d} className="border-b border-line px-1 py-2 text-left text-xs">
-                {encabezado(d)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {horarios.map((h) => (
-            <tr key={h}>
-              <td className="py-1 pr-2 text-xs font-semibold tabular-nums text-ink-secondary">{h}</td>
-              {dias.map((d) => {
-                const t = porDia.get(d)?.find((x) => x.startTime === h);
-                return (
-                  <td key={d} className="px-1 py-1 align-top">
-                    {t && (
-                      <div
-                        className={`rounded-md border px-2 py-1 text-xs font-semibold ${ESTADO_CLASES[t.status]}`}
-                      >
-                        {ESTADO_LABELS[t.status]}
-                      </div>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+        );
+      })}
+    </div>
   );
 }
 
