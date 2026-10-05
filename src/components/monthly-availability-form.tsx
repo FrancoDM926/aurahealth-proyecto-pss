@@ -4,8 +4,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveMonthlyAvailability, type JornadaPayload } from "@/actions/availability";
 import {
+  isPastDate,
+  opcionesHoraFin,
+  opcionesHoraInicio,
   SLOT_DURATION_MINUTES,
   validateMonthlyJornadasRN02,
+  type LimitesJornadas,
 } from "@/lib/availability-rn02";
 
 type InitialJornada = {
@@ -18,7 +22,18 @@ type Props = {
   initialYear: number;
   initialMonth: number;
   initialJornadas: InitialJornada[];
+  /** Límites de jornadas semanales vigentes (configurables, RN-02). */
+  limites: LimitesJornadas;
+  /** Hoy en la hora de la sala ("YYYY-MM-DD"): las fechas anteriores no se pueden cargar. */
+  today: string;
 };
+
+const HORAS_INICIO = opcionesHoraInicio();
+
+/** Agrega el valor actual si quedó fuera de la grilla (franjas guardadas antes del cambio). */
+function conValorActual(opciones: string[], actual: string): string[] {
+  return opciones.includes(actual) ? opciones : [...opciones, actual].sort();
+}
 
 const WEEKDAY_HEADERS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
@@ -52,6 +67,8 @@ export function MonthlyAvailabilityForm({
   initialYear,
   initialMonth,
   initialJornadas,
+  limites,
+  today,
 }: Props) {
   const router = useRouter();
   const monthOptions = useMemo(() => {
@@ -86,6 +103,7 @@ export function MonthlyAvailabilityForm({
   const [draftStart, setDraftStart] = useState("08:00");
   const [draftEnd, setDraftEnd] = useState("13:00");
   const [message, setMessage] = useState<string | null>(null);
+  const [dayErrors, setDayErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
   const [year, month] = period.split("-").map(Number);
@@ -95,9 +113,10 @@ export function MonthlyAvailabilityForm({
       validateMonthlyJornadasRN02(
         Object.values(jornadas).map((j) => ({ date: j.date })),
         year,
-        month
+        month,
+        limites
       ),
-    [jornadas, year, month]
+    [jornadas, year, month, limites]
   );
 
   const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
@@ -111,10 +130,20 @@ export function MonthlyAvailabilityForm({
 
   const openDayEditor = (day: number) => {
     const key = dateKey(year, month, day);
+    if (isPastDate(key, today)) return;
     const existing = jornadas[key];
     setEditingDay(key);
     setDraftStart(existing?.startTime ?? "08:00");
     setDraftEnd(existing?.endTime ?? "13:00");
+  };
+
+  /** Al cambiar el inicio, si el fin quedó antes, se corre al primer horario válido. */
+  const handleStartChange = (value: string) => {
+    setDraftStart(value);
+    const validEnds = opcionesHoraFin(value);
+    if (!validEnds.includes(draftEnd)) {
+      setDraftEnd(validEnds[0]);
+    }
   };
 
   const applyDayEditor = () => {
@@ -154,6 +183,7 @@ export function MonthlyAvailabilityForm({
     const result = await saveMonthlyAvailability(year, month, list);
     setLoading(false);
     setMessage(result.message ?? null);
+    setDayErrors(result.errors ?? {});
     if (result.success) {
       router.push(`/dashboard/agenda-generada?year=${year}&month=${month}`);
     }
@@ -224,16 +254,21 @@ export function MonthlyAvailabilityForm({
             const key = dateKey(year, month, day);
             const j = jornadas[key];
             const selected = Boolean(j);
+            const past = isPastDate(key, today);
             return (
               <button
                 key={key}
                 type="button"
+                disabled={past}
+                title={past ? "Fecha pasada: no se pueden cargar franjas" : undefined}
                 onClick={() => openDayEditor(day)}
                 className={`min-h-14 rounded-lg border p-1 transition ${
-                  selected
-                    ? "border-primary bg-primary-light text-primary"
-                    : "border-line bg-background hover:border-primary/50"
-                }`}
+                  dayErrors[key]
+                    ? "border-error bg-error/5 text-error"
+                    : selected
+                      ? "border-primary bg-primary-light text-primary"
+                      : "border-line bg-background hover:border-primary/50"
+                } disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 <span className="font-semibold">{day}</span>
                 {j && (
@@ -253,22 +288,39 @@ export function MonthlyAvailabilityForm({
             </p>
             <div className="mt-3 flex flex-wrap items-end gap-3">
               <div>
-                <label className="text-xs font-medium">Desde</label>
-                <input
-                  type="time"
-                  className="mt-1 block rounded-lg border border-line px-2 py-1 text-sm"
+                <label className="text-xs font-medium" htmlFor="franja-desde">
+                  Desde
+                </label>
+                <select
+                  id="franja-desde"
+                  className="mt-1 block rounded-lg border border-line bg-surface px-2 py-1 text-sm"
                   value={draftStart}
-                  onChange={(e) => setDraftStart(e.target.value)}
-                />
+                  onChange={(e) => handleStartChange(e.target.value)}
+                >
+                  {conValorActual(HORAS_INICIO, draftStart).map((h) => (
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label className="text-xs font-medium">Hasta</label>
-                <input
-                  type="time"
-                  className="mt-1 block rounded-lg border border-line px-2 py-1 text-sm"
+                <label className="text-xs font-medium" htmlFor="franja-hasta">
+                  Hasta
+                </label>
+                {/* Solo horarios posteriores al inicio: una franja "al revés" no se puede elegir. */}
+                <select
+                  id="franja-hasta"
+                  className="mt-1 block rounded-lg border border-line bg-surface px-2 py-1 text-sm"
                   value={draftEnd}
                   onChange={(e) => setDraftEnd(e.target.value)}
-                />
+                >
+                  {conValorActual(opcionesHoraFin(draftStart), draftEnd).map((h) => (
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
               </div>
               <button
                 type="button"
@@ -290,8 +342,12 @@ export function MonthlyAvailabilityForm({
 
         <div className="mt-6 rounded-lg border border-line bg-background p-4 text-sm">
           <strong>Regla de validación (RN-02):</strong> cada semana del mes debe tener{" "}
-          <strong>entre 2 y 7 jornadas</strong>. Se evalúan solo las semanas con al menos tres días
-          hábiles dentro del mes. El contador por semana es visible mientras se carga.
+          <strong>
+            entre {limites.min} y {limites.max} jornadas
+          </strong>
+          . Se evalúan solo las semanas con al menos tres días hábiles dentro del mes. El
+          contador por semana es visible mientras se carga. Los días que ya pasaron no se
+          pueden cargar.
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

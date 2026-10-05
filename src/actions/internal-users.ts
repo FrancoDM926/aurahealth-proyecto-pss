@@ -12,11 +12,33 @@ import type { User } from "@/generated/prisma/client";
 
 export type InternalUserListItem = Pick<
   User,
-  "id" | "firstName" | "lastName" | "role" | "isActive"
+  "id" | "firstName" | "lastName" | "role" | "isActive" | "docType"
 > & {
   specialty: User["specialty"];
   specialtyRaw: string | null;
+  docNumber: string | null;
+  /** "YYYY-MM-DD" o null. */
+  birthDate: string | null;
+  phone: string | null;
 };
+
+/**
+ * Antes del cambio de US-03 los internos se creaban con datos de relleno
+ * ("INT-…", 01/01/1990, "Pendiente"). Se muestran como vacíos para que el
+ * administrador no los confunda con datos reales.
+ */
+function datosPersonales(u: {
+  docNumber: string | null;
+  birthDate: Date | null;
+  phone: string | null;
+}) {
+  const relleno = Boolean(u.docNumber?.startsWith("INT-"));
+  return {
+    docNumber: relleno ? null : u.docNumber,
+    birthDate: relleno || !u.birthDate ? null : u.birthDate.toISOString().slice(0, 10),
+    phone: u.phone === "Pendiente" ? null : u.phone,
+  };
+}
 
 export type ActionResult = {
   success: boolean;
@@ -71,6 +93,8 @@ export async function listInternalUsers(): Promise<InternalUserListItem[]> {
       isActive: u.isActive,
       specialty: u.specialty,
       specialtyRaw: null,
+      docType: u.docType,
+      ...datosPersonales(u),
     }));
   } catch (error: unknown) {
     const code =
@@ -88,9 +112,14 @@ export async function listInternalUsers(): Promise<InternalUserListItem[]> {
         role: Role;
         isActive: boolean;
         specialty: string | null;
+        docType: string;
+        docNumber: string | null;
+        birthDate: Date | null;
+        phone: string | null;
       }>
     >`
-      SELECT id, "firstName", "lastName", role::text as role, "isActive", specialty::text as specialty
+      SELECT id, "firstName", "lastName", role::text as role, "isActive", specialty::text as specialty,
+             "docType", "docNumber", "birthDate", phone
       FROM "User"
       WHERE role::text IN ('MEDICO', 'ENFERMERA', 'ADMINISTRATIVO', 'ADMINISTRADOR')
       ORDER BY "isActive" DESC, "lastName" ASC, "firstName" ASC
@@ -104,7 +133,143 @@ export async function listInternalUsers(): Promise<InternalUserListItem[]> {
       isActive: row.isActive,
       specialty: parseMedicalSpecialty(row.specialty),
       specialtyRaw: row.specialty,
+      docType: row.docType,
+      ...datosPersonales(row),
     }));
+  }
+}
+
+export type UpdateInternalUserInput = {
+  firstName: string;
+  lastName: string;
+  role: Role;
+  specialty?: MedicalSpecialty | null;
+  docType: string;
+  docNumber: string;
+  /** "YYYY-MM-DD" o vacío. */
+  birthDate: string;
+  phone: string;
+};
+
+/**
+ * US-03: el administrador modifica los datos y el rol de un usuario interno.
+ * También corrige documento y nacimiento, que el usuario no puede editar (US-01).
+ */
+export async function updateInternalUser(
+  userId: string,
+  data: UpdateInternalUserInput
+): Promise<ActionResult> {
+  try {
+    await assertAdministrator();
+  } catch {
+    return { success: false, message: "No tenés permisos para esta acción." };
+  }
+
+  const target = await db.user.findUnique({ where: { id: userId } });
+  if (!target || !target.isActive) {
+    return { success: false, message: "Usuario no encontrado o dado de baja." };
+  }
+
+  const client = await clerkClient();
+  let currentRole: Role | null;
+  try {
+    const targetClerkUser = await client.users.getUser(target.clerkUserId);
+    currentRole = parseClerkRole(targetClerkUser.publicMetadata?.role);
+  } catch (error) {
+    console.error("updateInternalUser:", error);
+    return { success: false, message: "No se pudo consultar el usuario en Clerk." };
+  }
+  if (!currentRole || !CREATABLE_ROLES.includes(currentRole)) {
+    return {
+      success: false,
+      message: "Solo se pueden editar médicos, enfermeras y administrativos.",
+    };
+  }
+
+  const errors: Record<string, string> = {};
+  const firstName = data.firstName?.trim();
+  const lastName = data.lastName?.trim();
+  const docNumber = data.docNumber?.trim() || null;
+  const phone = data.phone?.trim() || null;
+  let birthDate: Date | null = null;
+
+  if (!firstName) errors.firstName = "El nombre es obligatorio.";
+  if (!lastName) errors.lastName = "El apellido es obligatorio.";
+  if (!data.role || !CREATABLE_ROLES.includes(data.role)) {
+    errors.role = "Seleccioná un rol válido.";
+  }
+  if (data.role === "MEDICO" && !data.specialty) {
+    errors.specialty = "La especialidad es obligatoria para el rol Médico.";
+  }
+  if (data.birthDate) {
+    birthDate = new Date(`${data.birthDate}T00:00:00.000Z`);
+    if (Number.isNaN(birthDate.getTime()) || birthDate > new Date()) {
+      errors.birthDate = "Ingresá una fecha de nacimiento válida.";
+    }
+  }
+  if (docNumber) {
+    const docInUse = await db.user.findFirst({
+      where: { docNumber, NOT: { id: target.id } },
+    });
+    if (docInUse) errors.docNumber = "Este documento ya está registrado en otra cuenta.";
+  }
+
+  // Un médico con agenda no puede dejar de serlo: sus turnos quedarían sin profesional.
+  if (currentRole === "MEDICO" && data.role !== "MEDICO") {
+    const [turnos, disponibilidades] = await Promise.all([
+      db.turno.count({ where: { doctorId: target.id } }),
+      db.monthlyAvailability.count({ where: { userId: target.id } }),
+    ]);
+    if (turnos > 0 || disponibilidades > 0) {
+      errors.role =
+        "No se puede cambiar el rol: el médico tiene disponibilidad o turnos cargados.";
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return { success: false, message: "Revisá los campos señalados.", errors };
+  }
+
+  const roleChanged = currentRole !== data.role;
+
+  try {
+    // El rol es autoritativo en Clerk: se actualiza primero ahí.
+    await client.users.updateUser(target.clerkUserId, { firstName, lastName });
+    if (roleChanged) {
+      await client.users.updateUserMetadata(target.clerkUserId, {
+        publicMetadata: { role: data.role },
+      });
+    }
+
+    try {
+      await db.user.update({
+        where: { id: target.id },
+        data: {
+          firstName,
+          lastName,
+          role: data.role,
+          specialty: data.role === "MEDICO" ? data.specialty! : null,
+          docType: data.docType?.trim() || "DNI",
+          docNumber,
+          birthDate,
+          phone,
+        },
+      });
+    } catch (dbErr) {
+      // Si Postgres falla, se vuelve atrás el rol en Clerk para no dejarlos distintos.
+      if (roleChanged) {
+        await client.users
+          .updateUserMetadata(target.clerkUserId, { publicMetadata: { role: currentRole } })
+          .catch((e) => console.error("No se pudo revertir el rol en Clerk:", e));
+      }
+      throw dbErr;
+    }
+
+    revalidatePath("/dashboard/admin/usuarios");
+    return { success: true, message: "Usuario actualizado." };
+  } catch (error) {
+    console.error("updateInternalUser:", error);
+    return { success: false, message: "No se pudo actualizar el usuario." };
   }
 }
 
@@ -155,7 +320,6 @@ export async function createInternalUser(
   }
 
   const { firstName, lastName } = splitFullName(data.fullName);
-  const docNumber = `INT-${randomBytes(4).toString("hex").toUpperCase()}`;
 
   try {
     const client = await clerkClient();
@@ -178,10 +342,9 @@ export async function createInternalUser(
           email,
           firstName,
           lastName,
+          // Documento, nacimiento y teléfono quedan vacíos: el usuario los
+          // completa desde "Mi cuenta". No se inventan datos.
           docType: "DNI",
-          docNumber,
-          birthDate: new Date("1990-01-01T00:00:00.000Z"),
-          phone: "Pendiente",
           coverageType: "PARTICULAR",
           role: data.role,
           specialty: data.role === "MEDICO" ? data.specialty! : null,

@@ -197,6 +197,13 @@ export async function completeUserProfile(
 }
 
 export type UpdateProfileInput = {
+  /**
+   * Documento y nacimiento solo se aceptan si todavía están vacíos (usuarios
+   * internos creados por el administrador). Una vez cargados no se editan (US-01).
+   */
+  docType?: string;
+  docNumber?: string;
+  birthDate?: string; // YYYY-MM-DD
   phone: string;
   email: string;
   address?: string;
@@ -243,6 +250,40 @@ export async function updateUserProfile(
     };
   }
 
+  const current = await db.user.findUnique({ where: { clerkUserId: userId } });
+  if (!current) {
+    return { success: false, message: "No encontramos tu perfil." };
+  }
+
+  // Completar documento y nacimiento por única vez, si estaban vacíos.
+  const completion: { docType?: string; docNumber?: string; birthDate?: Date } = {};
+  const newDocNumber = data.docNumber?.trim();
+  if (!current.docNumber && newDocNumber) {
+    const docInUse = await db.user.findFirst({
+      where: { docNumber: newDocNumber, NOT: { id: current.id } },
+    });
+    if (docInUse) {
+      return {
+        success: false,
+        message: "Ya existe una cuenta registrada con este número de documento.",
+        errors: { docNumber: "Este documento ya se encuentra registrado en el sistema." },
+      };
+    }
+    completion.docType = data.docType?.trim() || "DNI";
+    completion.docNumber = newDocNumber;
+  }
+  if (!current.birthDate && data.birthDate) {
+    const birthDate = new Date(`${data.birthDate}T00:00:00.000Z`);
+    if (Number.isNaN(birthDate.getTime()) || birthDate > new Date()) {
+      return {
+        success: false,
+        message: "Por favor revisá los campos señalados.",
+        errors: { birthDate: "Ingresá una fecha de nacimiento válida." },
+      };
+    }
+    completion.birthDate = birthDate;
+  }
+
   // Comprobar si el email está siendo tomado por otro usuario
   const emailInUse = await db.user.findFirst({
     where: {
@@ -265,6 +306,7 @@ export async function updateUserProfile(
     await db.user.update({
       where: { clerkUserId: userId },
       data: {
+        ...completion,
         phone: data.phone.trim(),
         email: data.email.toLowerCase().trim(),
         address: data.address?.trim() || null,

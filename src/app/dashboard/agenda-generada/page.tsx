@@ -2,6 +2,7 @@ import { getAgendaGeneradaPreview } from "@/actions/turnos";
 import { AgendaGeneradaView } from "@/components/agenda-generada-view";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { requireRoles } from "@/lib/auth-session";
+import { todayInArgentina } from "@/lib/availability-rn02";
 
 type PageProps = {
   searchParams: Promise<{ year?: string; month?: string }>;
@@ -16,17 +17,17 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AgendaGeneradaPage({ searchParams }: PageProps) {
-  const { role, profile } = await requireRoles(["MEDICO", "ADMINISTRADOR"]);
+  // US-06 / US-08: la agenda es del médico. El administrador no genera turnos.
+  const { role, profile } = await requireRoles(["MEDICO"]);
   const params = await searchParams;
 
-  const year = params.year ? Number(params.year) : 2026;
-  const month = params.month ? Number(params.month) : 9;
+  // Sin parámetros, el mes en curso (antes quedaba fijo en septiembre de 2026).
+  const [currentYear, currentMonth] = todayInArgentina().split("-").map(Number);
+  const year = Number(params.year) || currentYear;
+  const parsedMonth = Number(params.month);
+  const month = parsedMonth >= 1 && parsedMonth <= 12 ? parsedMonth : currentMonth;
 
-  const initialData = await getAgendaGeneradaPreview({
-    doctorId: profile.id,
-    year,
-    month,
-  });
+  const initialData = await getAgendaGeneradaPreview({ year, month });
 
   return (
     <DashboardShell
@@ -34,7 +35,7 @@ export default async function AgendaGeneradaPage({ searchParams }: PageProps) {
       role={role}
       activeNav="agenda-generada"
     >
-      <AgendaGeneradaView initialData={initialData} />
+      <AgendaGeneradaView key={`${year}-${month}`} initialData={initialData} />
     </DashboardShell>
   );
 }

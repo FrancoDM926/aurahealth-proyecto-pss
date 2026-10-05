@@ -33,9 +33,12 @@ model User {
   firstName             String
   lastName              String
   docType               String    @default("DNI")
-  docNumber             String    @unique
-  birthDate             DateTime
-  phone                 String
+  // Opcionales solo para usuarios internos: el administrador los crea sin
+  // estos datos y cada uno los completa desde "Mi cuenta". El autorregistro
+  // de pacientes (US-01) los sigue exigiendo.
+  docNumber             String?   @unique
+  birthDate             DateTime?
+  phone                 String?
   address               String?
   alternativeContact    String?
 
@@ -111,3 +114,12 @@ model Turno {
   @@index([status, date])
 }
 
+
+/// Parámetros que el administrador ajusta sin tocar el código. Fila única (id = 1).
+model Configuracion {
+  id                Int      @id @default(1)
+  // US-06 / RN-02: límites de jornadas por semana
+  minJornadasSemana Int      @default(2)
+  maxJornadasSemana Int      @default(7)
+  updatedAt         DateTime @updatedAt
+}
