@@ -8,6 +8,7 @@ type NavKey =
   | "mis-datos"
   | "usuarios"
   | "configuracion"
+  | "agenda"
   | "disponibilidad"
   | "agenda-generada";
 
@@ -26,6 +27,7 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const links: { key: NavKey; href: string; label: string; roles: Role[] }[] = [
     { key: "inicio", href: "/dashboard", label: "Inicio", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },
+    { key: "agenda", href: "/dashboard/agenda", label: "Mi agenda", roles: ["MEDICO"] },
     { key: "disponibilidad", href: "/dashboard/disponibilidad", label: "Disponibilidad", roles: ["MEDICO"] },
     { key: "agenda-generada", href: "/dashboard/agenda-generada", label: "Generación de turnos", roles: ["MEDICO"] },
     { key: "usuarios", href: "/dashboard/admin/usuarios", label: "Usuarios", roles: ["ADMINISTRADOR"] },
@@ -35,22 +37,19 @@ export function DashboardShell({
 
   const visible = links.filter((l) => l.roles.includes(role));
 
+  const linkClass = (key: NavKey) =>
+    activeNav === key
+      ? "border-b-2 border-primary pb-1 text-sm font-bold text-primary"
+      : "text-sm font-medium text-ink-secondary transition hover:text-ink";
+
   return (
     <main className="flex min-h-dvh flex-col bg-background">
       <header className="flex items-center justify-between border-b border-line bg-surface px-6 py-4 sm:px-10">
         <div className="flex items-center gap-8">
           <BrandLogo />
-          <nav className="hidden items-center gap-4 sm:flex">
+          <nav className="hidden items-center gap-4 lg:flex">
             {visible.map((link) => (
-              <Link
-                key={link.key}
-                href={link.href}
-                className={
-                  activeNav === link.key
-                    ? "border-b-2 border-primary pb-1 text-sm font-bold text-primary"
-                    : "text-sm font-medium text-ink-secondary transition hover:text-ink"
-                }
-              >
+              <Link key={link.key} href={link.href} className={linkClass(link.key)}>
                 {link.label}
               </Link>
             ))}
@@ -62,6 +61,17 @@ export function DashboardShell({
           <UserButton />
         </div>
       </header>
+      {/* Celular y tablet (RNF-08): el menú pasa a una fila propia debajo del encabezado. */}
+      <nav
+        aria-label="Menú"
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-6 py-3 lg:hidden"
+      >
+        {visible.map((link) => (
+          <Link key={link.key} href={link.href} className={linkClass(link.key)}>
+            {link.label}
+          </Link>
+        ))}
+      </nav>
       {children}
     </main>
   );
