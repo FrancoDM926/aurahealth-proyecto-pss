@@ -126,11 +126,10 @@ export function etiquetaDia(fecha: string): { corto: string; largo: string; nume
   };
 }
 
-function capitalizar(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-/** Título del período, como en el wireframe: "Semanal — 05 al 11 de octubre de 2026". */
+/**
+ * Período tal como lo muestra el selector "Vista" del wireframe:
+ * "05 al 11 de octubre de 2026", "05 de octubre de 2026", "octubre 2026".
+ */
 export function etiquetaPeriodo(vista: VistaAgenda, fecha: string): string {
   const { desde, hasta } = rangoDeVista(vista, fecha);
   const d = toDate(desde);
@@ -138,13 +137,13 @@ export function etiquetaPeriodo(vista: VistaAgenda, fecha: string): string {
   const dd = (x: Date) => String(x.getUTCDate()).padStart(2, "0");
   const mes = (x: Date) => MESES[x.getUTCMonth()];
   if (vista === "dia") {
-    return `${capitalizar(DIAS_LARGOS[d.getUTCDay()])} ${dd(d)} de ${mes(d)} de ${d.getUTCFullYear()}`;
+    return `${dd(d)} de ${mes(d)} de ${d.getUTCFullYear()}`;
   }
   if (vista === "semana") {
     const izq = d.getUTCMonth() === h.getUTCMonth() ? dd(d) : `${dd(d)} de ${mes(d)}`;
     return `${izq} al ${dd(h)} de ${mes(h)} de ${h.getUTCFullYear()}`;
   }
-  return `${capitalizar(mes(d))} ${d.getUTCFullYear()}`;
+  return `${mes(d)} ${d.getUTCFullYear()}`;
 }
 
 function minutos(hora: string): number {
@@ -170,11 +169,6 @@ export function agruparPorDia(turnos: TurnoAgenda[]): Map<string, TurnoAgenda[]>
     else out.set(t.date, [t]);
   }
   return out;
-}
-
-/** Horarios distintos de un conjunto de turnos, ordenados: las filas de la grilla semanal. */
-export function horariosDe(turnos: TurnoAgenda[]): string[] {
-  return [...new Set(turnos.map((t) => t.startTime))].sort((a, b) => minutos(a) - minutos(b));
 }
 
 export type HuecoLibre = { startTime: string; endTime: string; turnos: number };
