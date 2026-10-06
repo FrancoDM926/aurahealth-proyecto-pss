@@ -60,8 +60,17 @@ export default function RootLayout({
         },
       }}
     >
-      <html lang="es">
-        <body className="min-h-dvh bg-background text-ink">{children}</body>
+      {/* suppressHydrationWarning: extensiones del navegador (ad-blockers,
+          gestores de contraseñas, etc.) inyectan clases en <html>/<body> antes
+          del hydration. Solo silencia atributos de ESTOS elementos; el resto de
+          la app mantiene el chequeo de hydration normal. */}
+      <html lang="es" suppressHydrationWarning>
+        <body
+          className="min-h-dvh bg-background text-ink"
+          suppressHydrationWarning
+        >
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   );
