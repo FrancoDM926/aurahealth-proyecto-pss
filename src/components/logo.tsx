@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg
@@ -33,9 +35,14 @@ export function BrandLogo({
 }) {
   return (
     <span className={`flex items-center gap-2.5 ${className ?? ""}`}>
-      <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-surface">
-        <LogoMark className={markClassName ?? "size-7"} />
-      </span>
+      <Image
+        src="/images/aurahealth_logo.png"
+        alt="AuraHealth"
+        width={40}
+        height={40}
+        priority
+        className={`size-10 shrink-0 rounded-xl object-contain mix-blend-multiply ${markClassName ?? ""}`}
+      />
       <span
         className={`text-xl font-bold tracking-tight text-ink ${textClassName ?? ""}`}
       >

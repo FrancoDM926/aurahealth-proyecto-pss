@@ -56,10 +56,11 @@ export function DashboardShell({
       <Image
         src={roleBackground[role]}
         alt=""
-        fill
         priority
+        width={1815}
+        height={866}
         sizes="100vw"
-        className="absolute inset-0 object-cover"
+        className="pointer-events-none fixed inset-0 h-full w-full object-cover"
       />
       <header className="relative z-10 flex items-center justify-between border-b border-line bg-surface px-6 py-4 sm:px-10">
         <div className="flex items-center gap-8">
