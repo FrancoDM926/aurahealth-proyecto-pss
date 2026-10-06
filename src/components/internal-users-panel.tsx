@@ -134,10 +134,7 @@ export function InternalUsersPanel({ users }: Props) {
       )}
 
       <section className="rounded-xl border-2 border-line bg-surface p-6">
-        <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-          1 · Alta
-        </span>
-        <h2 className="mt-2 text-lg font-bold text-ink">Nuevo usuario interno</h2>
+        <h2 className="text-lg font-bold text-ink">Nuevo usuario interno</h2>
 
         <form onSubmit={handleCreate} className="mt-6 space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
@@ -229,10 +226,7 @@ export function InternalUsersPanel({ users }: Props) {
       </section>
 
       <section className="rounded-xl border-2 border-line bg-surface p-6">
-        <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-          2 · Listado
-        </span>
-        <h2 className="mt-2 text-lg font-bold text-ink">Usuarios activos e histórico</h2>
+        <h2 className="text-lg font-bold text-ink">Usuarios activos e histórico</h2>
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[520px] border-collapse text-left text-sm">
@@ -294,16 +288,13 @@ export function InternalUsersPanel({ users }: Props) {
         </div>
 
         <p className="mt-4 text-xs text-ink-secondary">
-          La baja solicita confirmación y conserva trazabilidad según la regla de negocio.
+          La baja solicita confirmación y conserva trazabilidad según la regla del sistema.
         </p>
       </section>
 
       {editing && editForm && (
         <section className="rounded-xl border-2 border-primary/40 bg-surface p-6">
-          <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-            3 · Edición
-          </span>
-          <h2 className="mt-2 text-lg font-bold text-ink">
+          <h2 className="text-lg font-bold text-ink">
             Editar a {editing.firstName} {editing.lastName}
           </h2>
 

@@ -17,7 +17,7 @@ type PageProps = {
 };
 
 export const metadata = {
-  title: "US-11 — Mi agenda | AuraHealth",
+  title: "Mi agenda | AuraHealth",
   description: "Agenda del profesional en vista diaria, semanal y mensual.",
 };
 

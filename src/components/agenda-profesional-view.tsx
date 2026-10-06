@@ -61,10 +61,7 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-        US-11 · Vista de agenda profesional · Sprint 1
-      </span>
-      <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">Mi agenda — {doctorName}</h1>
+      <h1 className="text-2xl font-bold text-ink sm:text-3xl">Mi agenda — {doctorName}</h1>
 
       {/* Período de consulta: "Vista" y "Mostrar" lado a lado, como el wireframe */}
       <section className="mt-8 rounded-xl border-2 border-line bg-surface p-4 sm:p-6">

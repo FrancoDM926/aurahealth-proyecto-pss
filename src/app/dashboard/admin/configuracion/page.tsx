@@ -21,10 +21,7 @@ export default async function ConfiguracionPage() {
       activeNav="configuracion"
     >
       <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-        <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-          US-06 · Parámetros configurables por el administrador
-        </span>
-        <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
+        <h1 className="text-2xl font-bold text-ink sm:text-3xl">
           Administración — Configuración
         </h1>
 

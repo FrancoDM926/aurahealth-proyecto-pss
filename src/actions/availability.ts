@@ -200,7 +200,7 @@ export async function saveMonthlyAvailability(
     // US-06: se informan todas las semanas que incumplen, no solo la primera.
     return {
       success: false,
-      message: rn02.blockingMessages.join(" ") || "La disponibilidad no cumple RN-02.",
+      message: rn02.blockingMessages.join(" ") || "La disponibilidad no cumple el mínimo de jornadas semanales.",
     };
   }
 

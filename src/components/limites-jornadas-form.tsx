@@ -24,10 +24,7 @@ export function LimitesJornadasForm({ initial }: { initial: LimitesJornadas }) {
 
   return (
     <section className="rounded-xl border-2 border-line bg-surface p-6">
-      <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-        Agenda médica · RN-02
-      </span>
-      <h2 className="mt-2 text-lg font-bold text-ink">Jornadas por semana</h2>
+      <h2 className="text-lg font-bold text-ink">Jornadas por semana</h2>
       <p className="mt-1 text-sm text-ink-secondary">
         Cantidad de jornadas que cada médico tiene que cargar por semana al declarar su
         disponibilidad mensual.

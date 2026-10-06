@@ -327,9 +327,6 @@ export function MisDatosForm({ user }: { user: UserData }) {
         {/* Bloque 1: Datos Editables */}
         <section className="rounded-xl border border-line bg-surface p-5 sm:p-6 shadow-sm">
           <div className="mb-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-primary">
-              1 · Datos editables
-            </span>
             <h2 className="text-lg font-bold text-ink">Información personal</h2>
           </div>
 
@@ -448,9 +445,6 @@ export function MisDatosForm({ user }: { user: UserData }) {
         {/* Bloque 2: Cobertura */}
         <section className="rounded-xl border border-line bg-surface p-5 sm:p-6 shadow-sm">
           <div className="mb-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-primary">
-              2 · Cobertura
-            </span>
             <h2 className="text-lg font-bold text-ink">Obra social</h2>
           </div>
 
@@ -581,9 +575,6 @@ export function MisDatosForm({ user }: { user: UserData }) {
         {/* Bloque 3: Solo Lectura */}
         <section className="rounded-xl border border-line bg-surface p-5 sm:p-6 shadow-sm">
           <div className="mb-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-              3 · Solo lectura
-            </span>
             <h2 className="text-lg font-bold text-ink">Datos no editables</h2>
           </div>
 

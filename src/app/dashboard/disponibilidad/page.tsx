@@ -18,7 +18,7 @@ function formatUtcDateOnly(date: Date): string {
 
 export const metadata = {
   title: "Agenda médica — Disponibilidad mensual",
-  description: "Carga de disponibilidad y validación de jornadas (US-06).",
+  description: "Carga de disponibilidad y validación de jornadas.",
 };
 
 export default async function DisponibilidadPage({ searchParams }: PageProps) {
@@ -47,10 +47,7 @@ export default async function DisponibilidadPage({ searchParams }: PageProps) {
       activeNav="disponibilidad"
     >
       <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-        <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-          US-06 · Carga de disponibilidad y validación de jornadas
-        </span>
-        <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
+        <h1 className="text-2xl font-bold text-ink sm:text-3xl">
           Agenda médica — Disponibilidad mensual
         </h1>
         <p className="mt-1 text-sm text-ink-secondary">

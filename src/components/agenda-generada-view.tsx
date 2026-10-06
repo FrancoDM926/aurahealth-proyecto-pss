@@ -71,10 +71,7 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
   if (!data.hasAvailability) {
     return (
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        <span className="inline-block text-xs font-bold uppercase tracking-wider text-primary">
-          ■ US-08 · Generación automática de turnos · Sprint 1
-        </span>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
           Agenda médica — Vista previa de generación
         </h1>
         <hr className="my-6 border-t-2 border-ink" />
@@ -99,12 +96,8 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Etiqueta de referencia y título del wireframe */}
       <div className="mb-6">
-        <span className="inline-block text-xs font-bold uppercase tracking-wider text-primary">
-          ■ US-08 · Generación automática de turnos · Sprint 1
-        </span>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
           Agenda médica — Vista previa de generación
         </h1>
         <p className="mt-1 text-sm text-ink-secondary">
@@ -129,9 +122,6 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
           <h2 className="text-xs font-bold uppercase tracking-wider text-ink-secondary">
             {data.monthLabel} · {data.specialty}
           </h2>
-          <span className="text-xs font-bold text-ink-secondary">
-            1 · Resumen
-          </span>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -159,7 +149,7 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
                 {data.summary.minJornadasSemana} a {data.summary.maxJornadasSemana}
               </strong>
               <p className="mt-1 text-xs text-emerald-800 font-medium">
-                jornadas por semana validadas (RN-02)
+                jornadas por semana validadas
               </p>
             </div>
           ) : (
@@ -168,7 +158,7 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
                 {data.summary.minJornadasSemana} a {data.summary.maxJornadasSemana}
               </strong>
               <p className="mt-1 text-xs text-red-800 font-medium">
-                jornadas por semana: la disponibilidad no cumple RN-02. Volvé a editarla.
+                jornadas por semana: la disponibilidad no cumple el mínimo. Volvé a editarla.
               </p>
             </div>
           )}
@@ -181,9 +171,6 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
           <h2 className="text-xs font-bold uppercase tracking-wider text-ink-secondary">
             Turnos que se crearán
           </h2>
-          <span className="text-xs font-bold text-ink-secondary">
-            2 · Vista previa
-          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -210,7 +197,7 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
                       {franja.sobranteMinutos > 0 && (
                         <span
                           className="ml-2 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded"
-                          title="Intervalo menor a 30 min descartado según Criterio 3"
+                          title="Intervalo menor a 30 min descartado"
                         >
                           +{franja.sobranteMinutos}m sobrante descartado
                         </span>
@@ -282,7 +269,7 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
         )}
 
         <p className="mt-4 text-xs text-ink-secondary">
-          Cada franja se divide en turnos consecutivos de 30 minutos (RN-09). La tabla muestra una fila por franja; el detalle turno a turno se ve en la agenda del profesional.
+          Cada franja se divide en turnos consecutivos de 30 minutos. La tabla muestra una fila por franja; el detalle turno a turno se ve en la agenda del profesional.
         </p>
 
         {/* Acciones principales según el wireframe */}
@@ -338,20 +325,17 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
           <h2 className="text-xs font-bold uppercase tracking-wider text-ink-secondary">
             Estado posterior
           </h2>
-          <span className="text-xs font-bold text-ink-secondary">
-            3 · Confirmación
-          </span>
         </div>
 
         {isGenerated ? (
           <div className="rounded-lg border border-emerald-400 bg-emerald-50/70 p-4 text-sm text-emerald-900">
             <p className="font-semibold text-emerald-800">
-              ✅ Agenda generada correctamente. Los turnos quedan publicados y la agenda del mes se abre automáticamente a los pacientes (US-10).
+              ✅ Agenda generada correctamente. Los turnos quedan publicados y la agenda del mes se abre automáticamente a los pacientes.
             </p>
             <div className="mt-2 text-xs text-emerald-700">
               <p>
                 • <strong>Total de intervalos generados:</strong>{" "}
-                {generationResult?.totalSlots || data.summary.totalTurnos} turnos de 30 minutos (fijos, RN-09).
+                {generationResult?.totalSlots || data.summary.totalTurnos} turnos de 30 minutos.
               </p>
               {generationResult && generationResult.createdCount > 0 && (
                 <p>
@@ -371,11 +355,6 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
           </div>
         )}
       </section>
-
-      {/* Pie del wireframe */}
-      <footer className="mt-8 border-t border-line pt-4 text-center text-xs text-ink-muted">
-        US cubierta: US-08 · generación automática de turnos de 30 minutos. Implementador único: I3. La prevención de solapamientos (antigua US-09 / RF-AGE-07) fue retirada por el cliente el 19/09/2026; la apertura de agenda tiene su propio wireframe (wf_agenda_paciente.html).
-      </footer>
     </div>
   );
 }

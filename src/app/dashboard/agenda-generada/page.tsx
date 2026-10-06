@@ -9,7 +9,7 @@ type PageProps = {
 };
 
 export const metadata = {
-  title: "US-08 — Agenda generada | AuraHealth",
+  title: "Agenda generada | AuraHealth",
   description:
     "Vista previa y generación automática de turnos de 30 minutos a partir de la disponibilidad confirmada.",
 };

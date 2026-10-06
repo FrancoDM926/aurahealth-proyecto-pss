@@ -138,9 +138,6 @@ export function CompleteProfileForm() {
       {/* Bloque 1: Datos Personales */}
       <section className="rounded-xl border border-line bg-surface p-5 sm:p-6 shadow-sm">
         <div className="mb-4">
-          <span className="text-xs font-bold uppercase tracking-wider text-primary">
-            1 · Datos identificatorios
-          </span>
           <h2 className="text-lg font-bold text-ink">Datos personales</h2>
         </div>
 
@@ -343,9 +340,6 @@ export function CompleteProfileForm() {
       {/* Bloque 2: Obra Social */}
       <section className="rounded-xl border border-line bg-surface p-5 sm:p-6 shadow-sm">
         <div className="mb-4">
-          <span className="text-xs font-bold uppercase tracking-wider text-primary">
-            2 · Obra social
-          </span>
           <h2 className="text-lg font-bold text-ink">Cobertura médica</h2>
         </div>
 

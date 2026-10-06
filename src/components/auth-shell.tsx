@@ -101,7 +101,7 @@ export function AuthShell({
 
       <section className="relative flex items-center justify-center px-4 py-[clamp(1rem,3vh,2.5rem)] sm:px-8 lg:px-12">
         <Image
-          src="/images/fondo.png"
+          src="/images/aurahealth_fondo.png"
           alt=""
           fill
           priority

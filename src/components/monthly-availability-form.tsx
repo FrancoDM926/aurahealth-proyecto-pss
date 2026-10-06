@@ -201,10 +201,7 @@ export function MonthlyAvailabilityForm({
       )}
 
       <section className="rounded-xl border-2 border-line bg-surface p-6">
-        <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-          1 · Período
-        </span>
-        <h2 className="mt-2 text-lg font-bold text-ink">Configurar mes</h2>
+        <h2 className="text-lg font-bold text-ink">Configurar mes</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium" htmlFor="month">
@@ -231,17 +228,14 @@ export function MonthlyAvailabilityForm({
           </div>
         </div>
         <p className="mt-3 text-xs text-ink-secondary">
-          La duración del turno no es configurable (RN-09). El médico declara la{" "}
+          La duración del turno no es configurable. El médico declara la{" "}
           <strong>franja horaria</strong> y el sistema la divide en turnos consecutivos de 30
           minutos.
         </p>
       </section>
 
       <section className="rounded-xl border-2 border-line bg-surface p-6">
-        <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-          2 · Jornadas
-        </span>
-        <h2 className="mt-2 text-lg font-bold text-ink">Seleccionar días de atención</h2>
+        <h2 className="text-lg font-bold text-ink">Seleccionar días de atención</h2>
 
         <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs sm:gap-2 sm:text-sm">
           {WEEKDAY_HEADERS.map((h) => (
@@ -341,7 +335,7 @@ export function MonthlyAvailabilityForm({
         )}
 
         <div className="mt-6 rounded-lg border border-line bg-background p-4 text-sm">
-          <strong>Regla de validación (RN-02):</strong> cada semana del mes debe tener{" "}
+          <strong>Regla de validación:</strong> cada semana del mes debe tener{" "}
           <strong>
             entre {limites.min} y {limites.max} jornadas
           </strong>
@@ -402,7 +396,7 @@ export function MonthlyAvailabilityForm({
               onClick={() => router.push(`/dashboard/agenda-generada?year=${year}&month=${month}`)}
               className="rounded-lg border-2 border-primary bg-primary-light/40 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-light"
             >
-              Ver turnos a generar (US-08)
+              Ver turnos a generar
             </button>
           )}
           <button

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { UserButton } from "@clerk/nextjs";
 import { BrandLogo } from "@/components/logo";
 import type { Role } from "@/generated/prisma/client";
@@ -25,6 +26,14 @@ export function DashboardShell({
   activeNav,
   children,
 }: DashboardShellProps) {
+  const roleBackground: Record<Role, string> = {
+    USUARIO: "/images/aurahealth_interfaz_medico.png",
+    MEDICO: "/images/aurahealth_interfaz_medico.png",
+    ENFERMERA: "/images/aurahealth_interfaz_enfermera.png",
+    ADMINISTRATIVO: "/images/aurahealth_interfaz_medico.png",
+    ADMINISTRADOR: "/images/aurahealth_interfaz_administrador.png",
+  };
+
   const links: { key: NavKey; href: string; label: string; roles: Role[] }[] = [
     { key: "inicio", href: "/dashboard", label: "Inicio", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },
     { key: "agenda", href: "/dashboard/agenda", label: "Mi agenda", roles: ["MEDICO"] },
@@ -43,8 +52,16 @@ export function DashboardShell({
       : "text-sm font-medium text-ink-secondary transition hover:text-ink";
 
   return (
-    <main className="flex min-h-dvh flex-col bg-background">
-      <header className="flex items-center justify-between border-b border-line bg-surface px-6 py-4 sm:px-10">
+    <main className="relative flex min-h-dvh flex-col">
+      <Image
+        src={roleBackground[role]}
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="absolute inset-0 object-cover"
+      />
+      <header className="relative z-10 flex items-center justify-between border-b border-line bg-surface px-6 py-4 sm:px-10">
         <div className="flex items-center gap-8">
           <BrandLogo />
           <nav className="hidden items-center gap-4 lg:flex">
@@ -64,7 +81,7 @@ export function DashboardShell({
       {/* Celular y tablet (RNF-08): el menú pasa a una fila propia debajo del encabezado. */}
       <nav
         aria-label="Menú"
-        className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-6 py-3 lg:hidden"
+        className="relative z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-6 py-3 lg:hidden"
       >
         {visible.map((link) => (
           <Link key={link.key} href={link.href} className={linkClass(link.key)}>
@@ -72,7 +89,7 @@ export function DashboardShell({
           </Link>
         ))}
       </nav>
-      {children}
+      <div className="relative z-10 flex-1">{children}</div>
     </main>
   );
 }

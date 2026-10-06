@@ -28,9 +28,6 @@ export default async function CompleteProfilePage() {
       <div className="mx-auto max-w-2xl">
         <header className="mb-8 flex flex-col items-center text-center">
           <BrandLogo />
-          <span className="mt-4 inline-block text-xs font-semibold tracking-wider text-primary uppercase">
-            US-01 · Registro y gestión de la cuenta
-          </span>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
             Completá tu cuenta
           </h1>
