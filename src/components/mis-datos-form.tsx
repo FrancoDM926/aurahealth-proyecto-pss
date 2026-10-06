@@ -8,6 +8,12 @@ import {
   syncUserEmailInDb,
   UpdateProfileInput,
 } from "@/actions/user";
+import {
+  validateProfileUpdateData,
+  DOC_TYPES,
+  ENTITY_OPTIONS,
+  MAX_LENGTHS,
+} from "@/lib/validation";
 
 type UserData = {
   id: string;
@@ -108,27 +114,27 @@ export function MisDatosForm({ user }: { user: UserData }) {
     setErrorMessage(null);
     setFieldErrors({});
 
-    const errors: Record<string, string> = {};
-    if (!formData.phone.trim())
-      errors.phone = "El teléfono no puede estar vacío.";
-    if (!formData.email.trim())
-      errors.email = "El correo no puede estar vacío.";
+    // Documento y fecha de nacimiento solo viajan si la sección one-shot está visible.
+    const payload: UpdateProfileInput = {
+      phone: formData.phone,
+      email: formData.email,
+      address: formData.address,
+      alternativeContact: formData.alternativeContact,
+      coverageType: formData.coverageType,
+      healthInsuranceEntity: formData.healthInsuranceEntity,
+      healthInsurancePlan: formData.healthInsurancePlan,
+      healthInsuranceNumber: formData.healthInsuranceNumber,
+      ...(missingDoc
+        ? { docType: formData.docType, docNumber: formData.docNumber }
+        : {}),
+      ...(missingBirthDate ? { birthDate: formData.birthDate } : {}),
+    };
 
-    if (formData.coverageType === "OBRA_SOCIAL") {
-      if (!formData.healthInsuranceEntity.trim()) {
-        errors.healthInsuranceEntity = "Indicá la entidad de tu cobertura.";
-      }
-      if (!formData.healthInsurancePlan.trim()) {
-        errors.healthInsurancePlan = "Indicá el plan de tu cobertura.";
-      }
-      if (!formData.healthInsuranceNumber.trim()) {
-        errors.healthInsuranceNumber = "Indicá tu número de afiliado.";
-      }
-    }
-
+    // Mismas reglas y mensajes que en el servidor (src/lib/validation.ts).
+    const errors = validateProfileUpdateData(payload);
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      setErrorMessage("Por favor completá los campos obligatorios.");
+      setErrorMessage("Por favor revisá los campos señalados.");
       return;
     }
 
@@ -140,9 +146,9 @@ export function MisDatosForm({ user }: { user: UserData }) {
     try {
       // 1. Guardar primero la información de contacto y cobertura manteniendo el email actual en DB
       const result = await updateUserProfile({
-        ...formData,
+        ...payload,
         email: currentEmail, // no cambia en DB hasta ser verificado
-      } as UpdateProfileInput);
+      });
 
       if (!result.success) {
         setErrorMessage(result.message || "Error al actualizar los datos.");
@@ -377,6 +383,7 @@ export function MisDatosForm({ user }: { user: UserData }) {
                 id="phone"
                 name="phone"
                 type="tel"
+                maxLength={MAX_LENGTHS.phone}
                 value={formData.phone}
                 onChange={handleChange}
                 className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm text-ink outline-none transition focus:border-primary focus:ring-1 focus:ring-primary ${
@@ -402,6 +409,7 @@ export function MisDatosForm({ user }: { user: UserData }) {
                 id="email"
                 name="email"
                 type="email"
+                maxLength={MAX_LENGTHS.email}
                 value={formData.email}
                 onChange={handleChange}
                 className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm text-ink outline-none transition focus:border-primary focus:ring-1 focus:ring-primary ${
@@ -427,11 +435,15 @@ export function MisDatosForm({ user }: { user: UserData }) {
                 id="address"
                 name="address"
                 type="text"
+                maxLength={MAX_LENGTHS.address}
                 placeholder="Calle, número, localidad"
                 value={formData.address}
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-lg border border-line bg-background px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               />
+              {fieldErrors.address && (
+                <p className="mt-1 text-xs text-red-600">{fieldErrors.address}</p>
+              )}
             </div>
 
             {/* Contacto Alternativo */}
@@ -446,11 +458,17 @@ export function MisDatosForm({ user }: { user: UserData }) {
                 id="alternativeContact"
                 name="alternativeContact"
                 type="text"
+                maxLength={MAX_LENGTHS.alternativeContact}
                 placeholder="Nombre y teléfono"
                 value={formData.alternativeContact}
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-lg border border-line bg-background px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               />
+              {fieldErrors.alternativeContact && (
+                <p className="mt-1 text-xs text-red-600">
+                  {fieldErrors.alternativeContact}
+                </p>
+              )}
             </div>
           </div>
 
@@ -515,10 +533,11 @@ export function MisDatosForm({ user }: { user: UserData }) {
                   }`}
                 >
                   <option value="">Seleccionar entidad</option>
-                  <option value="OSDE">OSDE</option>
-                  <option value="Swiss Medical">Swiss Medical</option>
-                  <option value="IOMA">IOMA</option>
-                  <option value="PAMI">PAMI</option>
+                  {ENTITY_OPTIONS.map((entity) => (
+                    <option key={entity.value} value={entity.value}>
+                      {entity.label}
+                    </option>
+                  ))}
                 </select>
                 {fieldErrors.healthInsuranceEntity && (
                   <p className="mt-1 text-xs text-red-600">
@@ -542,6 +561,7 @@ export function MisDatosForm({ user }: { user: UserData }) {
                   id="healthInsurancePlan"
                   name="healthInsurancePlan"
                   type="text"
+                  maxLength={MAX_LENGTHS.healthInsurancePlan}
                   disabled={isParticular}
                   value={formData.healthInsurancePlan}
                   onChange={handleChange}
@@ -575,6 +595,7 @@ export function MisDatosForm({ user }: { user: UserData }) {
                   id="healthInsuranceNumber"
                   name="healthInsuranceNumber"
                   type="text"
+                  maxLength={MAX_LENGTHS.healthInsuranceNumber}
                   disabled={isParticular}
                   value={formData.healthInsuranceNumber}
                   onChange={handleChange}
@@ -619,15 +640,17 @@ export function MisDatosForm({ user }: { user: UserData }) {
                     onChange={handleChange}
                     className="rounded-lg border border-line bg-background px-2 py-2 text-sm text-ink"
                   >
-                    <option value="DNI">DNI</option>
-                    <option value="LC">LC</option>
-                    <option value="LE">LE</option>
-                    <option value="PASAPORTE">Pasaporte</option>
+                    {DOC_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type === "PASAPORTE" ? "Pasaporte" : type}
+                      </option>
+                    ))}
                   </select>
                   <input
                     id="docNumber"
                     name="docNumber"
                     type="text"
+                    maxLength={MAX_LENGTHS.docNumber}
                     placeholder="Número"
                     value={formData.docNumber}
                     onChange={handleChange}

@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { completeUserProfile } from "@/actions/user";
+import {
+  validateCompleteProfileData,
+  DOC_TYPES,
+  DOC_TYPE_LABELS,
+  ENTITY_OPTIONS,
+  MAX_LENGTHS,
+} from "@/lib/validation";
 
 export function CompleteProfileForm() {
   const router = useRouter();
@@ -62,36 +69,8 @@ export function CompleteProfileForm() {
     setGeneralError(null);
     setErrors({});
 
-    // Validaciones en cliente al presionar Continuar
-    const clientErrors: Record<string, string> = {};
-
-    if (!formData.firstName.trim()) {
-      clientErrors.firstName = "Por favor ingresá tu nombre.";
-    }
-    if (!formData.lastName.trim()) {
-      clientErrors.lastName = "Por favor ingresá tu apellido.";
-    }
-    if (!formData.docNumber.trim()) {
-      clientErrors.docNumber = "Por favor ingresá tu número de documento.";
-    }
-    if (!formData.birthDate) {
-      clientErrors.birthDate = "Por favor seleccioná tu fecha de nacimiento.";
-    }
-    if (!formData.phone.trim()) {
-      clientErrors.phone = "Por favor ingresá un teléfono de contacto.";
-    }
-
-    if (formData.coverageType === "OBRA_SOCIAL") {
-      if (!formData.healthInsuranceEntity.trim()) {
-        clientErrors.healthInsuranceEntity = "Seleccioná o especificá tu obra social o prepaga.";
-      }
-      if (!formData.healthInsurancePlan.trim()) {
-        clientErrors.healthInsurancePlan = "Ingresá el plan de tu cobertura.";
-      }
-      if (!formData.healthInsuranceNumber.trim()) {
-        clientErrors.healthInsuranceNumber = "Ingresá tu número de afiliado.";
-      }
-    }
+    // Mismas reglas y mensajes que en el servidor (src/lib/validation.ts).
+    const clientErrors = validateCompleteProfileData(formData);
 
     if (Object.keys(clientErrors).length > 0) {
       setErrors(clientErrors);
@@ -154,6 +133,7 @@ export function CompleteProfileForm() {
               id="firstName"
               name="firstName"
               type="text"
+              maxLength={MAX_LENGTHS.firstName}
               placeholder="Ej. María"
               value={formData.firstName}
               onChange={handleChange}
@@ -180,6 +160,7 @@ export function CompleteProfileForm() {
               id="lastName"
               name="lastName"
               type="text"
+              maxLength={MAX_LENGTHS.lastName}
               placeholder="Ej. García"
               value={formData.lastName}
               onChange={handleChange}
@@ -209,10 +190,11 @@ export function CompleteProfileForm() {
               onChange={handleChange}
               className="mt-1 block w-full rounded-lg border border-line bg-background px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             >
-              <option value="DNI">DNI (Documento Nacional de Identidad)</option>
-              <option value="LC">LC (Libreta Cívica)</option>
-              <option value="LE">LE (Libreta de Enrolamiento)</option>
-              <option value="PASAPORTE">Pasaporte</option>
+              {DOC_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {DOC_TYPE_LABELS[type]}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -228,6 +210,7 @@ export function CompleteProfileForm() {
               id="docNumber"
               name="docNumber"
               type="text"
+              maxLength={MAX_LENGTHS.docNumber}
               placeholder="Sin puntos ni espacios (Ej. 38442901)"
               value={formData.docNumber}
               onChange={handleChange}
@@ -279,6 +262,7 @@ export function CompleteProfileForm() {
               id="phone"
               name="phone"
               type="tel"
+              maxLength={MAX_LENGTHS.phone}
               placeholder="Código de área y número"
               value={formData.phone}
               onChange={handleChange}
@@ -305,11 +289,15 @@ export function CompleteProfileForm() {
               id="address"
               name="address"
               type="text"
+              maxLength={MAX_LENGTHS.address}
               placeholder="Calle, número, localidad"
               value={formData.address}
               onChange={handleChange}
               className="mt-1 block w-full rounded-lg border border-line bg-background px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
+            {errors.address && (
+              <p className="mt-1 text-xs text-red-600">{errors.address}</p>
+            )}
           </div>
 
           {/* Contacto alternativo */}
@@ -324,11 +312,15 @@ export function CompleteProfileForm() {
               id="alternativeContact"
               name="alternativeContact"
               type="text"
+              maxLength={MAX_LENGTHS.alternativeContact}
               placeholder="Nombre y teléfono de un familiar / contacto"
               value={formData.alternativeContact}
               onChange={handleChange}
               className="mt-1 block w-full rounded-lg border border-line bg-background px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
+            {errors.alternativeContact && (
+              <p className="mt-1 text-xs text-red-600">{errors.alternativeContact}</p>
+            )}
           </div>
         </div>
 
@@ -389,10 +381,11 @@ export function CompleteProfileForm() {
               }`}
             >
               <option value="">Seleccionar entidad</option>
-              <option value="OSDE">OSDE</option>
-              <option value="Swiss Medical">Swiss Medical</option>
-              <option value="IOMA">IOMA</option>
-              <option value="PAMI">PAMI</option>
+              {ENTITY_OPTIONS.map((entity) => (
+                <option key={entity.value} value={entity.value}>
+                  {entity.label}
+                </option>
+              ))}
             </select>
             {errors.healthInsuranceEntity && (
               <p className="mt-1 text-xs text-red-600">
@@ -415,6 +408,7 @@ export function CompleteProfileForm() {
               id="healthInsurancePlan"
               name="healthInsurancePlan"
               type="text"
+              maxLength={MAX_LENGTHS.healthInsurancePlan}
               placeholder={isParticular ? "Deshabilitado" : "Ej. 210, Plata, Básico"}
               disabled={isParticular}
               value={formData.healthInsurancePlan}
@@ -448,6 +442,7 @@ export function CompleteProfileForm() {
               id="healthInsuranceNumber"
               name="healthInsuranceNumber"
               type="text"
+              maxLength={MAX_LENGTHS.healthInsuranceNumber}
               placeholder={isParticular ? "Deshabilitado" : "Según credencial"}
               disabled={isParticular}
               value={formData.healthInsuranceNumber}

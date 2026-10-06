@@ -4,6 +4,12 @@ import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { parseClerkRole } from "@/lib/roles";
+import {
+  parseBirthDate,
+  validateCompleteProfileData,
+  validateEmailFormat,
+  validateProfileUpdateData,
+} from "@/lib/validation";
 import type { Role } from "@/generated/prisma/client";
 
 /**
@@ -56,7 +62,7 @@ export async function completeUserProfile(
   if (!userId || !user) {
     return {
       success: false,
-      message: "No tienes una sesión activa. Por favor iniciá sesión.",
+      message: "No tenés una sesión activa. Iniciá sesión nuevamente.",
     };
   }
 
@@ -68,26 +74,8 @@ export async function completeUserProfile(
     };
   }
 
-  // Validaciones del servidor
-  const errors: Record<string, string> = {};
-
-  if (!data.firstName?.trim()) errors.firstName = "El nombre es obligatorio.";
-  if (!data.lastName?.trim()) errors.lastName = "El apellido es obligatorio.";
-  if (!data.docNumber?.trim()) errors.docNumber = "El número de documento es obligatorio.";
-  if (!data.birthDate) errors.birthDate = "La fecha de nacimiento es obligatoria.";
-  if (!data.phone?.trim()) errors.phone = "El teléfono es obligatorio.";
-
-  if (data.coverageType === "OBRA_SOCIAL") {
-    if (!data.healthInsuranceEntity?.trim()) {
-      errors.healthInsuranceEntity = "Debe seleccionar o indicar la entidad de obra social.";
-    }
-    if (!data.healthInsurancePlan?.trim()) {
-      errors.healthInsurancePlan = "El plan es obligatorio.";
-    }
-    if (!data.healthInsuranceNumber?.trim()) {
-      errors.healthInsuranceNumber = "El número de afiliado es obligatorio.";
-    }
-  }
+  // Mismas reglas y mensajes que en el cliente (src/lib/validation.ts).
+  const errors = validateCompleteProfileData(data);
 
   if (Object.keys(errors).length > 0) {
     return {
@@ -149,7 +137,15 @@ export async function completeUserProfile(
   }
 
   try {
-    const parsedDate = new Date(data.birthDate);
+    // Validada por validateCompleteProfileData; parse como UTC seguro.
+    const parsedDate = parseBirthDate(data.birthDate);
+    if (!parsedDate) {
+      return {
+        success: false,
+        message: "Por favor revisá los campos señalados.",
+        errors: { birthDate: "Ingresá una fecha de nacimiento válida." },
+      };
+    }
 
     // El rol es autoritativo en Clerk. Se escribe ANTES que la fila en Postgres:
     // si Clerk falla, no queda un perfil sin rol y el reintento es limpio. Si
@@ -191,7 +187,7 @@ export async function completeUserProfile(
     console.error("Error al completar perfil:", error);
     return {
       success: false,
-      message: "Ocurrió un error inesperado al guardar los datos. Intente nuevamente.",
+      message: "Ocurrió un error inesperado al guardar los datos. Intentá nuevamente.",
     };
   }
 }
@@ -222,25 +218,12 @@ export async function updateUserProfile(
   if (!userId) {
     return {
       success: false,
-      message: "No tienes una sesión activa.",
+      message: "No tenés una sesión activa. Iniciá sesión nuevamente.",
     };
   }
 
-  const errors: Record<string, string> = {};
-  if (!data.phone?.trim()) errors.phone = "El teléfono es obligatorio.";
-  if (!data.email?.trim()) errors.email = "El correo electrónico es obligatorio.";
-
-  if (data.coverageType === "OBRA_SOCIAL") {
-    if (!data.healthInsuranceEntity?.trim()) {
-      errors.healthInsuranceEntity = "Debe indicar la entidad de obra social.";
-    }
-    if (!data.healthInsurancePlan?.trim()) {
-      errors.healthInsurancePlan = "El plan es obligatorio.";
-    }
-    if (!data.healthInsuranceNumber?.trim()) {
-      errors.healthInsuranceNumber = "El número de afiliado es obligatorio.";
-    }
-  }
+  // Mismas reglas y mensajes que en el cliente (src/lib/validation.ts).
+  const errors = validateProfileUpdateData(data);
 
   if (Object.keys(errors).length > 0) {
     return {
@@ -273,8 +256,9 @@ export async function updateUserProfile(
     completion.docNumber = newDocNumber;
   }
   if (!current.birthDate && data.birthDate) {
-    const birthDate = new Date(`${data.birthDate}T00:00:00.000Z`);
-    if (Number.isNaN(birthDate.getTime()) || birthDate > new Date()) {
+    // Validada por validateProfileUpdateData; parse como UTC seguro.
+    const birthDate = parseBirthDate(data.birthDate);
+    if (!birthDate) {
       return {
         success: false,
         message: "Por favor revisá los campos señalados.",
@@ -344,11 +328,22 @@ export async function syncUserEmailInDb(
   if (!userId) {
     return {
       success: false,
-      message: "No tienes una sesión activa.",
+      message: "No tenés una sesión activa. Iniciá sesión nuevamente.",
     };
   }
 
   const cleanEmail = newEmail.toLowerCase().trim();
+
+  // Defensa en profundidad: la server action es invocable desde el cliente,
+  // no se confía en que el email llegue ya validado por Clerk.
+  const emailError = validateEmailFormat(cleanEmail);
+  if (emailError) {
+    return {
+      success: false,
+      message: "El correo electrónico ingresado no es válido.",
+      errors: { email: emailError },
+    };
+  }
 
   // Comprobar disponibilidad en DB
   const emailInUse = await db.user.findFirst({
