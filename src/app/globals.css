@@ -63,3 +63,22 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+@keyframes border-blink {
+  0%, 100% {
+    border-color: rgba(21, 94, 117, 0.4);
+    box-shadow: 0 0 0 0 rgba(21, 94, 117, 0);
+  }
+  25%, 75% {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 5px rgba(21, 94, 117, 0.35);
+  }
+  50% {
+    border-color: rgba(21, 94, 117, 0.4);
+    box-shadow: 0 0 0 1px rgba(21, 94, 117, 0.1);
+  }
+}
+
+.animate-border-blink {
+  animation: border-blink 1.6s ease-in-out;
+}

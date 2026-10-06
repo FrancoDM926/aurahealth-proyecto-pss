@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   createInternalUser,
@@ -32,6 +32,9 @@ export function InternalUsersPanel({ users }: Props) {
   const [editForm, setEditForm] = useState<UpdateInternalUserInput | null>(null);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [scrollTrigger, setScrollTrigger] = useState(0);
+  const [isHighlighting, setIsHighlighting] = useState(false);
+  const editSectionRef = useRef<HTMLElement | null>(null);
 
   const startEdit = (user: InternalUserListItem) => {
     setMessage(null);
@@ -47,7 +50,21 @@ export function InternalUsersPanel({ users }: Props) {
       birthDate: user.birthDate ?? "",
       phone: user.phone ?? "",
     });
+    setScrollTrigger((prev) => prev + 1);
   };
+
+  useEffect(() => {
+    if (editing && scrollTrigger > 0) {
+      editSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setIsHighlighting(false);
+      const raf = requestAnimationFrame(() => setIsHighlighting(true));
+      const timer = setTimeout(() => setIsHighlighting(false), 1600);
+      return () => {
+        cancelAnimationFrame(raf);
+        clearTimeout(timer);
+      };
+    }
+  }, [editing, scrollTrigger]);
 
   const cancelEdit = () => {
     setEditing(null);
@@ -293,7 +310,14 @@ export function InternalUsersPanel({ users }: Props) {
       </section>
 
       {editing && editForm && (
-        <section className="rounded-xl border-2 border-primary/40 bg-surface p-6">
+        <section
+          ref={editSectionRef}
+          className={`rounded-xl border-2 bg-surface p-6 transition-colors ${
+            isHighlighting
+              ? "animate-border-blink border-primary"
+              : "border-primary/40"
+          }`}
+        >
           <h2 className="text-lg font-bold text-ink">
             Editar a {editing.firstName} {editing.lastName}
           </h2>
