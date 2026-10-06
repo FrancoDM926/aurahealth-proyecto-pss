@@ -151,6 +151,21 @@ function minutos(hora: string): number {
   return h * 60 + m;
 }
 
+/**
+ * Filas de la grilla semanal: de 30 en 30 minutos, desde el primer turno hasta
+ * el último, sin saltear los horarios intermedios (así los huecos se ven).
+ */
+export function filasHorario(turnos: TurnoAgenda[]): string[] {
+  if (turnos.length === 0) return [];
+  const desde = Math.min(...turnos.map((t) => minutos(t.startTime)));
+  const hasta = Math.max(...turnos.map((t) => minutos(t.startTime)));
+  const filas: string[] = [];
+  for (let m = desde; m <= hasta; m += 30) {
+    filas.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+  }
+  return filas;
+}
+
 export function pasaFiltro(t: TurnoAgenda, filtro: FiltroAgenda): boolean {
   if (filtro === "libres") return t.status === "DISPONIBLE";
   if (filtro === "reservados") return t.status === "RESERVADO";

@@ -5,6 +5,7 @@ import {
   agruparPorDia,
   esFechaValida,
   etiquetaPeriodo,
+  filasHorario,
   huecosLibres,
   inicioDeSemana,
   moverPeriodo,
@@ -103,6 +104,16 @@ describe("US-11 — vista diaria", () => {
     assert.equal(r.DISPONIBLE, 1);
     assert.equal(r.RESERVADO, 1);
     assert.equal(r.CANCELADO, 1);
+  });
+});
+
+describe("US-11 — grilla semanal", () => {
+  it("las filas van de 30 en 30 sin saltear horarios, para que se vean los huecos", () => {
+    assert.deepEqual(
+      filasHorario([t("08:00", "08:30", "DISPONIBLE"), t("09:30", "10:00", "RESERVADO", "2026-10-06")]),
+      ["08:00", "08:30", "09:00", "09:30"]
+    );
+    assert.deepEqual(filasHorario([]), []);
   });
 });
 

@@ -9,6 +9,7 @@ import {
   ESTADO_LABELS,
   etiquetaDia,
   etiquetaPeriodo,
+  filasHorario,
   FILTRO_LABELS,
   huecosLibres,
   inicioDeSemana,
@@ -238,8 +239,9 @@ function VistaDiaria({ turnos }: { turnos: TurnoAgenda[] }) {
 }
 
 /**
- * Vista semanal: una columna por día con sus turnos (solo los días que tienen
- * turnos, como el wireframe). En celular las columnas se apilan.
+ * Vista semanal, como el wireframe: la hora a la izquierda y un día por
+ * columna (lunes a domingo), con una fila cada 30 minutos y el estado de cada
+ * turno en su casilla. En celular, una lista por día.
  */
 function VistaSemanal({
   fecha,
@@ -252,43 +254,100 @@ function VistaSemanal({
   porDia: Map<string, TurnoAgenda[]>;
   onDia: (fecha: string) => void;
 }) {
-  const dias = diasDelRango(rangoDeVista("semana", inicioDeSemana(fecha))).filter((d) =>
-    porDia.has(d)
-  );
+  const dias = diasDelRango(rangoDeVista("semana", inicioDeSemana(fecha)));
+  const filas = filasHorario([...porDia.values()].flat());
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))]">
-      {dias.map((d) => {
-        const e = etiquetaDia(d);
-        return (
-          <div
-            key={d}
-            className={`rounded-lg border p-2 ${d === hoy ? "border-primary" : "border-line"}`}
-          >
-            <button
-              type="button"
-              onClick={() => onDia(d)}
-              className={`mb-2 w-full text-left text-sm font-semibold hover:text-primary ${
-                d === hoy ? "text-primary" : "text-ink"
-              }`}
-            >
-              {e.corto} {e.numero}
-            </button>
-            <ul className="space-y-1.5">
-              {(porDia.get(d) ?? []).map((t) => (
-                <li key={t.id}>
-                  <Turno turno={t} />
-                </li>
-              ))}
-            </ul>
+    <>
+      {/* Celular: lista por día */}
+      <div className="space-y-4 md:hidden">
+        {dias
+          .filter((d) => porDia.has(d))
+          .map((d) => {
+            const e = etiquetaDia(d);
+            return (
+              <div key={d}>
+                <button
+                  type="button"
+                  onClick={() => onDia(d)}
+                  className={`mb-2 text-sm font-semibold ${d === hoy ? "text-primary" : "text-ink"}`}
+                >
+                  {e.corto} {e.numero}
+                </button>
+                <ul className="space-y-1.5">
+                  {(porDia.get(d) ?? []).map((t) => (
+                    <li key={t.id}>
+                      <Turno turno={t} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+      </div>
+
+      {/* Pantallas medianas o más: grilla de calendario */}
+      <div className="hidden overflow-hidden rounded-lg border border-line md:block">
+        <div className="grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] border-b border-line bg-background">
+          <div className="flex items-end px-2 py-2 text-xs font-semibold text-ink-secondary">
+            Hora
           </div>
-        );
-      })}
-    </div>
+          {dias.map((d) => {
+            const e = etiquetaDia(d);
+            const tiene = porDia.has(d);
+            return (
+              <div
+                key={d}
+                className={`border-l border-line px-1 py-2 ${d === hoy ? "bg-primary-light" : ""}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => onDia(d)}
+                  disabled={!tiene}
+                  className={`w-full text-center text-xs font-semibold enabled:hover:text-primary disabled:cursor-default ${
+                    d === hoy ? "text-primary" : tiene ? "text-ink" : "text-ink-muted"
+                  }`}
+                >
+                  <span className="block">{e.corto}</span>
+                  <span className="block text-base">{e.numero}</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        {filas.map((h) => (
+          <div
+            key={h}
+            className="grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] border-b border-line last:border-b-0"
+          >
+            <div className="px-2 py-1.5 text-xs font-semibold tabular-nums text-ink-secondary">
+              {h}
+            </div>
+            {dias.map((d) => {
+              const t = porDia.get(d)?.find((x) => x.startTime === h);
+              return (
+                <div key={d} className="min-h-9 border-l border-line p-1">
+                  {t && (
+                    <div
+                      className={`flex h-full items-center justify-center rounded border px-1 text-xs font-semibold ${ESTADO_CLASES[t.status]}`}
+                    >
+                      {ESTADO_LABELS[t.status]}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
-/** Vista mensual: calendario con libres y reservados por día. Tocando un día se abre la vista diaria. */
+/**
+ * Vista mensual: calendario con líneas. Cada día muestra cuántos turnos libres
+ * y reservados tiene; tocando un día se abre la vista diaria.
+ */
 function VistaMensual({
   fecha,
   hoy,
@@ -303,40 +362,55 @@ function VistaMensual({
   const rango = rangoDeVista("mes", fecha);
   const dias = diasDelRango(rango);
   const relleno = DIAS_SEMANA.indexOf(etiquetaDia(rango.desde).corto);
+  const celdas: (string | null)[] = [...Array<null>(relleno).fill(null), ...dias];
+  while (celdas.length % 7 !== 0) celdas.push(null);
 
   return (
     <div>
-      <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-ink-secondary">
-        {DIAS_SEMANA.map((d) => (
-          <div key={d}>{d}</div>
-        ))}
-      </div>
-      <div className="mt-1 grid grid-cols-7 gap-1">
-        {Array.from({ length: relleno }).map((_, i) => (
-          <div key={`vacio-${i}`} />
-        ))}
-        {dias.map((d) => {
-          const r = resumenDelDia(porDia.get(d) ?? []);
-          return (
-            <button
-              key={d}
-              type="button"
-              disabled={r.total === 0}
-              onClick={() => onDia(d)}
-              className={`min-h-14 rounded-md border p-1 text-left text-xs disabled:cursor-default disabled:opacity-50 sm:min-h-16 ${
-                d === hoy ? "border-primary" : "border-line"
-              } enabled:hover:bg-background`}
-            >
-              <span className="font-bold text-ink">{etiquetaDia(d).numero}</span>
-              {r.total > 0 && (
-                <span className="mt-0.5 block leading-tight">
-                  <span className="block text-emerald-700">{r.DISPONIBLE} lib.</span>
-                  <span className="block text-sky-700">{r.RESERVADO} res.</span>
+      <div className="overflow-hidden rounded-lg border border-line">
+        <div className="grid grid-cols-7 border-b border-line bg-background text-center text-xs font-semibold text-ink-secondary">
+          {DIAS_SEMANA.map((d, i) => (
+            <div key={d} className={`py-2 ${i > 0 ? "border-l border-line" : ""}`}>
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {celdas.map((d, i) => {
+            const bordes = `border-line ${i % 7 > 0 ? "border-l" : ""} ${i >= 7 ? "border-t" : ""}`;
+            if (!d) {
+              return (
+                <div key={`vacio-${i}`} className={`min-h-16 bg-background sm:min-h-20 ${bordes}`} />
+              );
+            }
+            const r = resumenDelDia(porDia.get(d) ?? []);
+            return (
+              <button
+                key={d}
+                type="button"
+                disabled={r.total === 0}
+                onClick={() => onDia(d)}
+                className={`flex min-h-16 flex-col items-start justify-start p-1 text-left text-xs disabled:cursor-default sm:min-h-20 sm:p-1.5 ${bordes} ${
+                  d === hoy ? "bg-primary-light" : "bg-surface enabled:hover:bg-background"
+                }`}
+              >
+                <span
+                  className={`font-bold ${
+                    d === hoy ? "text-primary" : r.total > 0 ? "text-ink" : "text-ink-muted"
+                  }`}
+                >
+                  {etiquetaDia(d).numero}
                 </span>
-              )}
-            </button>
-          );
-        })}
+                {r.total > 0 && (
+                  <span className="mt-0.5 block leading-tight">
+                    <span className="block text-emerald-700">{r.DISPONIBLE} lib.</span>
+                    <span className="block text-sky-700">{r.RESERVADO} res.</span>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <p className="mt-3 text-xs text-ink-secondary">
         lib. = libres · res. = reservados · Tocá un día para ver el detalle.
