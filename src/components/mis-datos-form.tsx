@@ -9,7 +9,6 @@ import {
   UpdateProfileInput,
 } from "@/actions/user";
 
-
 type UserData = {
   id: string;
   email: string;
@@ -75,7 +74,7 @@ export function MisDatosForm({ user }: { user: UserData }) {
     : "";
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -110,8 +109,10 @@ export function MisDatosForm({ user }: { user: UserData }) {
     setFieldErrors({});
 
     const errors: Record<string, string> = {};
-    if (!formData.phone.trim()) errors.phone = "El teléfono no puede estar vacío.";
-    if (!formData.email.trim()) errors.email = "El correo no puede estar vacío.";
+    if (!formData.phone.trim())
+      errors.phone = "El teléfono no puede estar vacío.";
+    if (!formData.email.trim())
+      errors.email = "El correo no puede estar vacío.";
 
     if (formData.coverageType === "OBRA_SOCIAL") {
       if (!formData.healthInsuranceEntity.trim()) {
@@ -153,7 +154,10 @@ export function MisDatosForm({ user }: { user: UserData }) {
       }
 
       // Si se completó el documento o el nacimiento, se recarga para mostrarlos bloqueados.
-      if ((missingDoc && formData.docNumber.trim()) || (missingBirthDate && formData.birthDate)) {
+      if (
+        (missingDoc && formData.docNumber.trim()) ||
+        (missingBirthDate && formData.birthDate)
+      ) {
         router.refresh();
       }
 
@@ -164,7 +168,7 @@ export function MisDatosForm({ user }: { user: UserData }) {
         try {
           // Verificar si el correo ya fue agregado previamente a la cuenta en Clerk
           let emailResource = clerkUser.emailAddresses.find(
-            (e) => e.emailAddress.toLowerCase() === newEmailClean
+            (e) => e.emailAddress.toLowerCase() === newEmailClean,
           );
 
           if (!emailResource) {
@@ -177,17 +181,17 @@ export function MisDatosForm({ user }: { user: UserData }) {
           if (emailResource.verification?.status === "verified") {
             const syncResult = await syncUserEmailInDb(
               newEmailClean,
-              emailResource.id
+              emailResource.id,
             );
             if (syncResult.success) {
               await clerkUser.reload();
               setCurrentEmail(newEmailClean);
               setSuccessMessage(
-                "Tu correo electrónico ha sido verificado y actualizado correctamente. Las notificaciones posteriores se enviarán a esta dirección."
+                "Tu correo electrónico ha sido verificado y actualizado correctamente. Las notificaciones posteriores se enviarán a esta dirección.",
               );
             } else {
               setErrorMessage(
-                syncResult.message || "Error al finalizar el cambio de correo."
+                syncResult.message || "Error al finalizar el cambio de correo.",
               );
             }
           } else {
@@ -197,7 +201,7 @@ export function MisDatosForm({ user }: { user: UserData }) {
             setPendingEmailResource(emailResource);
             setShowOtpModal(true);
             setSuccessMessage(
-              "Tus datos personales fueron guardados. Te enviamos un código de verificación a tu nuevo correo electrónico para confirmar el cambio de dirección."
+              "Tus datos personales fueron guardados. Te enviamos un código de verificación a tu nuevo correo electrónico para confirmar el cambio de dirección.",
             );
           }
         } catch (clerkErr: any) {
@@ -234,9 +238,11 @@ export function MisDatosForm({ user }: { user: UserData }) {
 
     try {
       // 1. Verificar el código OTP en Clerk
-      const verificationResult = await pendingEmailResource.attemptVerification({
-        code: otpCode.trim(),
-      });
+      const verificationResult = await pendingEmailResource.attemptVerification(
+        {
+          code: otpCode.trim(),
+        },
+      );
 
       const isVerified =
         verificationResult?.verification?.status === "verified" ||
@@ -252,7 +258,7 @@ export function MisDatosForm({ user }: { user: UserData }) {
         //    - Actualiza el correo en Postgres
         const syncResult = await syncUserEmailInDb(
           newEmailString,
-          newEmailAddressId
+          newEmailAddressId,
         );
 
         if (syncResult.success) {
@@ -262,12 +268,12 @@ export function MisDatosForm({ user }: { user: UserData }) {
           setPendingEmailResource(null);
           setOtpCode("");
           setSuccessMessage(
-            "Tu correo electrónico ha sido verificado y actualizado correctamente. Las notificaciones posteriores se enviarán a esta dirección."
+            "Tu correo electrónico ha sido verificado y actualizado correctamente. Las notificaciones posteriores se enviarán a esta dirección.",
           );
         } else {
           setOtpError(
             syncResult.message ||
-              "El correo fue verificado pero ocurrió un error al actualizar la cuenta."
+              "El correo fue verificado pero ocurrió un error al actualizar la cuenta.",
           );
         }
       } else {
@@ -285,13 +291,15 @@ export function MisDatosForm({ user }: { user: UserData }) {
     }
   };
 
-
   const handleCancelOtp = async () => {
     if (pendingEmailResource) {
       try {
         await pendingEmailResource.destroy();
       } catch (err) {
-        console.warn("No se pudo limpiar el recurso de email no verificado:", err);
+        console.warn(
+          "No se pudo limpiar el recurso de email no verificado:",
+          err,
+        );
       }
     }
     setShowOtpModal(false);
@@ -359,7 +367,10 @@ export function MisDatosForm({ user }: { user: UserData }) {
 
             {/* Teléfono */}
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-ink">
+              <label
+                htmlFor="phone"
+                className="block text-sm font-medium text-ink"
+              >
                 Teléfono <span className="text-red-500">*</span>
               </label>
               <input
@@ -381,7 +392,10 @@ export function MisDatosForm({ user }: { user: UserData }) {
 
             {/* Correo Electrónico */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-ink">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-ink"
+              >
                 Correo electrónico <span className="text-red-500">*</span>
               </label>
               <input
@@ -403,7 +417,10 @@ export function MisDatosForm({ user }: { user: UserData }) {
 
             {/* Domicilio */}
             <div>
-              <label htmlFor="address" className="block text-sm font-medium text-ink">
+              <label
+                htmlFor="address"
+                className="block text-sm font-medium text-ink"
+              >
                 Domicilio
               </label>
               <input
@@ -438,139 +455,146 @@ export function MisDatosForm({ user }: { user: UserData }) {
           </div>
 
           <p className="mt-4 text-xs text-ink-secondary">
-            💡 Al cambiar el correo electrónico, las notificaciones posteriores se enviarán a la nueva dirección tras confirmar el código de verificación (OTP).
+            💡 Al cambiar el correo electrónico, las notificaciones posteriores
+            se enviarán a la nueva dirección tras confirmar el código de
+            verificación (OTP).
           </p>
         </section>
 
         {/* Bloque 2: Cobertura */}
-        <section className="rounded-xl border border-line bg-surface p-5 sm:p-6 shadow-sm">
-          <div className="mb-4">
-            <h2 className="text-lg font-bold text-ink">Obra social</h2>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* Tipo de Cobertura */}
-            <div className="sm:col-span-2">
-              <label
-                htmlFor="coverageType"
-                className="block text-sm font-medium text-ink"
-              >
-                Tipo de cobertura
-              </label>
-              <select
-                id="coverageType"
-                name="coverageType"
-                value={formData.coverageType}
-                onChange={handleCoverageChange}
-                className="mt-1 block w-full rounded-lg border border-line bg-background px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-              >
-                <option value="OBRA_SOCIAL">Obra social o prepaga</option>
-                <option value="PARTICULAR">Sin cobertura / particular</option>
-              </select>
+        {user.role === "USUARIO" && (
+          <section className="rounded-xl border border-line bg-surface p-5 sm:p-6 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-ink">Obra social</h2>
             </div>
 
-            {/* Entidad */}
-            <div>
-              <label
-                htmlFor="healthInsuranceEntity"
-                className={`block text-sm font-medium ${
-                  isParticular ? "text-ink-muted" : "text-ink"
-                }`}
-              >
-                Entidad {!isParticular && <span className="text-red-500">*</span>}
-              </label>
-              <select
-                id="healthInsuranceEntity"
-                name="healthInsuranceEntity"
-                disabled={isParticular}
-                value={formData.healthInsuranceEntity}
-                onChange={handleChange}
-                className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
-                  isParticular
-                    ? "border-line bg-gray-100 text-ink-muted cursor-not-allowed"
-                    : fieldErrors.healthInsuranceEntity
-                    ? "border-red-500 bg-red-50/50 text-ink"
-                    : "border-line bg-background text-ink focus:border-primary focus:ring-1 focus:ring-primary"
-                }`}
-              >
-                <option value="">Seleccionar entidad</option>
-                <option value="OSDE">OSDE</option>
-                <option value="Swiss Medical">Swiss Medical</option>
-                <option value="IOMA">IOMA</option>
-                <option value="PAMI">PAMI</option>
-              </select>
-              {fieldErrors.healthInsuranceEntity && (
-                <p className="mt-1 text-xs text-red-600">
-                  {fieldErrors.healthInsuranceEntity}
-                </p>
-              )}
-            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Tipo de Cobertura */}
+              <div className="sm:col-span-2">
+                <label
+                  htmlFor="coverageType"
+                  className="block text-sm font-medium text-ink"
+                >
+                  Tipo de cobertura
+                </label>
+                <select
+                  id="coverageType"
+                  name="coverageType"
+                  value={formData.coverageType}
+                  onChange={handleCoverageChange}
+                  className="mt-1 block w-full rounded-lg border border-line bg-background px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                >
+                  <option value="OBRA_SOCIAL">Obra social o prepaga</option>
+                  <option value="PARTICULAR">Sin cobertura / particular</option>
+                </select>
+              </div>
 
-            {/* Plan */}
-            <div>
-              <label
-                htmlFor="healthInsurancePlan"
-                className={`block text-sm font-medium ${
-                  isParticular ? "text-ink-muted" : "text-ink"
-                }`}
-              >
-                Plan {!isParticular && <span className="text-red-500">*</span>}
-              </label>
-              <input
-                id="healthInsurancePlan"
-                name="healthInsurancePlan"
-                type="text"
-                disabled={isParticular}
-                value={formData.healthInsurancePlan}
-                onChange={handleChange}
-                className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
-                  isParticular
-                    ? "border-line bg-gray-100 text-ink-muted cursor-not-allowed"
-                    : fieldErrors.healthInsurancePlan
-                    ? "border-red-500 bg-red-50/50 text-ink"
-                    : "border-line bg-background text-ink focus:border-primary focus:ring-1 focus:ring-primary"
-                }`}
-              />
-              {fieldErrors.healthInsurancePlan && (
-                <p className="mt-1 text-xs text-red-600">
-                  {fieldErrors.healthInsurancePlan}
-                </p>
-              )}
-            </div>
+              {/* Entidad */}
+              <div>
+                <label
+                  htmlFor="healthInsuranceEntity"
+                  className={`block text-sm font-medium ${
+                    isParticular ? "text-ink-muted" : "text-ink"
+                  }`}
+                >
+                  Entidad{" "}
+                  {!isParticular && <span className="text-red-500">*</span>}
+                </label>
+                <select
+                  id="healthInsuranceEntity"
+                  name="healthInsuranceEntity"
+                  disabled={isParticular}
+                  value={formData.healthInsuranceEntity}
+                  onChange={handleChange}
+                  className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
+                    isParticular
+                      ? "border-line bg-gray-100 text-ink-muted cursor-not-allowed"
+                      : fieldErrors.healthInsuranceEntity
+                        ? "border-red-500 bg-red-50/50 text-ink"
+                        : "border-line bg-background text-ink focus:border-primary focus:ring-1 focus:ring-primary"
+                  }`}
+                >
+                  <option value="">Seleccionar entidad</option>
+                  <option value="OSDE">OSDE</option>
+                  <option value="Swiss Medical">Swiss Medical</option>
+                  <option value="IOMA">IOMA</option>
+                  <option value="PAMI">PAMI</option>
+                </select>
+                {fieldErrors.healthInsuranceEntity && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {fieldErrors.healthInsuranceEntity}
+                  </p>
+                )}
+              </div>
 
-            {/* Número de afiliado */}
-            <div className="sm:col-span-2">
-              <label
-                htmlFor="healthInsuranceNumber"
-                className={`block text-sm font-medium ${
-                  isParticular ? "text-ink-muted" : "text-ink"
-                }`}
-              >
-                Número de afiliado {!isParticular && <span className="text-red-500">*</span>}
-              </label>
-              <input
-                id="healthInsuranceNumber"
-                name="healthInsuranceNumber"
-                type="text"
-                disabled={isParticular}
-                value={formData.healthInsuranceNumber}
-                onChange={handleChange}
-                className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
-                  isParticular
-                    ? "border-line bg-gray-100 text-ink-muted cursor-not-allowed"
-                    : fieldErrors.healthInsuranceNumber
-                    ? "border-red-500 bg-red-50/50 text-ink"
-                    : "border-line bg-background text-ink focus:border-primary focus:ring-1 focus:ring-primary"
-                }`}
-              />
-              {fieldErrors.healthInsuranceNumber && (
-                <p className="mt-1 text-xs text-red-600">
-                  {fieldErrors.healthInsuranceNumber}
-                </p>
-              )}
+              {/* Plan */}
+              <div>
+                <label
+                  htmlFor="healthInsurancePlan"
+                  className={`block text-sm font-medium ${
+                    isParticular ? "text-ink-muted" : "text-ink"
+                  }`}
+                >
+                  Plan{" "}
+                  {!isParticular && <span className="text-red-500">*</span>}
+                </label>
+                <input
+                  id="healthInsurancePlan"
+                  name="healthInsurancePlan"
+                  type="text"
+                  disabled={isParticular}
+                  value={formData.healthInsurancePlan}
+                  onChange={handleChange}
+                  className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
+                    isParticular
+                      ? "border-line bg-gray-100 text-ink-muted cursor-not-allowed"
+                      : fieldErrors.healthInsurancePlan
+                        ? "border-red-500 bg-red-50/50 text-ink"
+                        : "border-line bg-background text-ink focus:border-primary focus:ring-1 focus:ring-primary"
+                  }`}
+                />
+                {fieldErrors.healthInsurancePlan && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {fieldErrors.healthInsurancePlan}
+                  </p>
+                )}
+              </div>
+
+              {/* Número de afiliado */}
+              <div className="sm:col-span-2">
+                <label
+                  htmlFor="healthInsuranceNumber"
+                  className={`block text-sm font-medium ${
+                    isParticular ? "text-ink-muted" : "text-ink"
+                  }`}
+                >
+                  Número de afiliado{" "}
+                  {!isParticular && <span className="text-red-500">*</span>}
+                </label>
+                <input
+                  id="healthInsuranceNumber"
+                  name="healthInsuranceNumber"
+                  type="text"
+                  disabled={isParticular}
+                  value={formData.healthInsuranceNumber}
+                  onChange={handleChange}
+                  className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
+                    isParticular
+                      ? "border-line bg-gray-100 text-ink-muted cursor-not-allowed"
+                      : fieldErrors.healthInsuranceNumber
+                        ? "border-red-500 bg-red-50/50 text-ink"
+                        : "border-line bg-background text-ink focus:border-primary focus:ring-1 focus:ring-primary"
+                  }`}
+                />
+                {fieldErrors.healthInsuranceNumber && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {fieldErrors.healthInsuranceNumber}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Bloque 3: Solo Lectura */}
         <section className="rounded-xl border border-line bg-surface p-5 sm:p-6 shadow-sm">
@@ -581,7 +605,10 @@ export function MisDatosForm({ user }: { user: UserData }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {missingDoc ? (
               <div>
-                <label htmlFor="docNumber" className="block text-sm font-medium text-ink">
+                <label
+                  htmlFor="docNumber"
+                  className="block text-sm font-medium text-ink"
+                >
                   Documento
                 </label>
                 <div className="mt-1 flex gap-2">
@@ -610,7 +637,9 @@ export function MisDatosForm({ user }: { user: UserData }) {
                   />
                 </div>
                 {fieldErrors.docNumber && (
-                  <p className="mt-1 text-xs text-red-600">{fieldErrors.docNumber}</p>
+                  <p className="mt-1 text-xs text-red-600">
+                    {fieldErrors.docNumber}
+                  </p>
                 )}
               </div>
             ) : (
@@ -626,7 +655,10 @@ export function MisDatosForm({ user }: { user: UserData }) {
 
             {missingBirthDate ? (
               <div>
-                <label htmlFor="birthDate" className="block text-sm font-medium text-ink">
+                <label
+                  htmlFor="birthDate"
+                  className="block text-sm font-medium text-ink"
+                >
                   Fecha de nacimiento
                 </label>
                 <input
@@ -640,7 +672,9 @@ export function MisDatosForm({ user }: { user: UserData }) {
                   }`}
                 />
                 {fieldErrors.birthDate && (
-                  <p className="mt-1 text-xs text-red-600">{fieldErrors.birthDate}</p>
+                  <p className="mt-1 text-xs text-red-600">
+                    {fieldErrors.birthDate}
+                  </p>
                 )}
               </div>
             ) : (
@@ -657,13 +691,15 @@ export function MisDatosForm({ user }: { user: UserData }) {
 
           {(missingDoc || missingBirthDate) && (
             <p className="mt-4 text-xs font-medium text-ink">
-              Completá los datos que faltan. Una vez guardados, el documento y la fecha de
-              nacimiento ya no se pueden modificar.
+              Completá los datos que faltan. Una vez guardados, el documento y
+              la fecha de nacimiento ya no se pueden modificar.
             </p>
           )}
 
           <p className="mt-4 text-xs text-ink-secondary">
-            🔒 Documento y fecha de nacimiento no son editables por el usuario: requieren intervención administrativa. Se muestran como texto, sin control de edición.
+            🔒 Documento y fecha de nacimiento no son editables por el usuario:
+            requieren intervención administrativa. Se muestran como texto, sin
+            control de edición.
           </p>
         </section>
 
