@@ -13,6 +13,7 @@ import type { InternalUserListItem } from "@/actions/internal-users";
 import { formatUserRole, ROLE_LABELS, SPECIALTY_LABELS } from "@/lib/roles";
 
 const CREATABLE_ROLES: Role[] = ["MEDICO", "ENFERMERA", "ADMINISTRATIVO"];
+const PAGE_SIZE = 10;
 
 type Props = {
   users: InternalUserListItem[];
@@ -32,10 +33,17 @@ export function InternalUsersPanel({ users }: Props) {
   const [editForm, setEditForm] = useState<UpdateInternalUserInput | null>(null);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
   const [scrollTrigger, setScrollTrigger] = useState(0);
   const [isHighlighting, setIsHighlighting] = useState(false);
   const editSectionRef = useRef<HTMLElement | null>(null);
   const [editMessage, setEditMessage] = useState<string | null>(null);
+
+  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+  // Si el listado se achica (p. ej. tras un refresh), no se queda en una página inexistente.
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageUsers = users.slice(pageStart, pageStart + PAGE_SIZE);
 
   const startEdit = (user: InternalUserListItem) => {
     setMessage(null);
@@ -273,7 +281,7 @@ export function InternalUsersPanel({ users }: Props) {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {pageUsers.map((user) => (
                 <tr key={user.id} className="border-b border-line/80">
                   <td className="py-3 pr-4">
                     {user.firstName} {user.lastName}
@@ -324,6 +332,38 @@ export function InternalUsersPanel({ users }: Props) {
             </tbody>
           </table>
         </div>
+
+        {users.length > PAGE_SIZE && (
+          <nav
+            aria-label="Paginación del listado"
+            className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm"
+          >
+            <span className="text-xs text-ink-secondary">
+              {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, users.length)} de {users.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-background disabled:opacity-40"
+              >
+                Anterior
+              </button>
+              <span className="text-xs text-ink-secondary">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-background disabled:opacity-40"
+              >
+                Siguiente
+              </button>
+            </div>
+          </nav>
+        )}
 
         <p className="mt-4 text-xs text-ink-secondary">
           La baja solicita confirmación y conserva trazabilidad según la regla del sistema.
