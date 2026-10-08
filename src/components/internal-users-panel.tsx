@@ -35,9 +35,11 @@ export function InternalUsersPanel({ users }: Props) {
   const [scrollTrigger, setScrollTrigger] = useState(0);
   const [isHighlighting, setIsHighlighting] = useState(false);
   const editSectionRef = useRef<HTMLElement | null>(null);
+  const [editMessage, setEditMessage] = useState<string | null>(null);
 
   const startEdit = (user: InternalUserListItem) => {
     setMessage(null);
+    setEditMessage(null);
     setEditErrors({});
     setEditing(user);
     setEditForm({
@@ -70,6 +72,7 @@ export function InternalUsersPanel({ users }: Props) {
     setEditing(null);
     setEditForm(null);
     setEditErrors({});
+    setEditMessage(null);
   };
 
   const setField = <K extends keyof UpdateInternalUserInput>(
@@ -82,18 +85,30 @@ export function InternalUsersPanel({ users }: Props) {
     if (!editing || !editForm) return;
     setSaving(true);
     setEditErrors({});
-    const result = await updateInternalUser(editing.id, {
-      ...editForm,
-      specialty: editForm.role === "MEDICO" ? editForm.specialty : null,
-    });
+    setEditMessage(null);
+    let result: Awaited<ReturnType<typeof updateInternalUser>>;
+    try {
+      result = await updateInternalUser(editing.id, {
+        ...editForm,
+        specialty: editForm.role === "MEDICO" ? editForm.specialty : null,
+      });
+    } catch (err) {
+      console.error("updateInternalUser:", err);
+      setSaving(false);
+      setEditMessage("No se pudo guardar. Probá de nuevo en unos segundos.");
+      return;
+    }
     setSaving(false);
-    setMessage(result.message ?? null);
     if (!result.success) {
+      // El error se muestra dentro del formulario, no arriba de todo la página.
+      setEditMessage(result.message ?? "No se pudo guardar.");
       setEditErrors(result.errors ?? {});
       return;
     }
     cancelEdit();
+    setMessage(result.message ?? "Usuario actualizado.");
     router.refresh();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -246,11 +261,13 @@ export function InternalUsersPanel({ users }: Props) {
         <h2 className="text-lg font-bold text-ink">Usuarios activos e histórico</h2>
 
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[680px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-line text-ink-secondary">
                 <th className="py-2 pr-4 font-semibold">Nombre</th>
                 <th className="py-2 pr-4 font-semibold">Rol</th>
+                <th className="py-2 pr-4 font-semibold">Documento</th>
+                <th className="py-2 pr-4 font-semibold">Teléfono</th>
                 <th className="py-2 pr-4 font-semibold">Estado</th>
                 <th className="py-2 font-semibold">Acción</th>
               </tr>
@@ -264,6 +281,10 @@ export function InternalUsersPanel({ users }: Props) {
                   <td className="py-3 pr-4">
                     {formatUserRole(user.role, user.specialty, user.specialtyRaw)}
                   </td>
+                  <td className="py-3 pr-4">
+                    {user.docNumber ? `${user.docType} ${user.docNumber}` : "—"}
+                  </td>
+                  <td className="py-3 pr-4">{user.phone || "—"}</td>
                   <td className="py-3 pr-4">
                     <span
                       className={
@@ -321,6 +342,15 @@ export function InternalUsersPanel({ users }: Props) {
           <h2 className="text-lg font-bold text-ink">
             Editar a {editing.firstName} {editing.lastName}
           </h2>
+
+          {editMessage && (
+            <div
+              className="mt-4 rounded-lg border border-error/40 bg-error/5 px-4 py-3 text-sm text-error"
+              role="alert"
+            >
+              {editMessage}
+            </div>
+          )}
 
           <form onSubmit={handleUpdate} className="mt-6 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
