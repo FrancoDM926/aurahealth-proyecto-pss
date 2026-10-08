@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   createInternalUser,
   deactivateInternalUser,
+  reactivateInternalUser,
   updateInternalUser,
   type UpdateInternalUserInput,
 } from "@/actions/internal-users";
@@ -29,6 +30,7 @@ export function InternalUsersPanel({ users }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<InternalUserListItem | null>(null);
   const [editForm, setEditForm] = useState<UpdateInternalUserInput | null>(null);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
@@ -158,6 +160,20 @@ export function InternalUsersPanel({ users }: Props) {
     setDeactivatingId(user.id);
     const result = await deactivateInternalUser(user.id);
     setDeactivatingId(null);
+    setMessage(result.message ?? null);
+    if (result.success) router.refresh();
+  };
+
+  const handleReactivate = async (user: InternalUserListItem) => {
+    const name = `${user.firstName} ${user.lastName}`;
+    const confirmed = window.confirm(
+      `¿Dar de alta nuevamente a ${name}? Podrá volver a iniciar sesión.`
+    );
+    if (!confirmed) return;
+
+    setReactivatingId(user.id);
+    const result = await reactivateInternalUser(user.id);
+    setReactivatingId(null);
     setMessage(result.message ?? null);
     if (result.success) router.refresh();
   };
@@ -323,6 +339,15 @@ export function InternalUsersPanel({ users }: Props) {
                           Dar de baja
                         </button>
                       </div>
+                    ) : !user.isActive && user.role !== "ADMINISTRADOR" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleReactivate(user)}
+                        disabled={reactivatingId === user.id}
+                        className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary-light disabled:opacity-60"
+                      >
+                        {reactivatingId === user.id ? "Dando de alta…" : "Dar de alta"}
+                      </button>
                     ) : (
                       <span className="text-xs text-ink-muted">—</span>
                     )}
