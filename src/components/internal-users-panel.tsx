@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   createInternalUser,
   deactivateInternalUser,
+  reactivateInternalUser,
   updateInternalUser,
   type UpdateInternalUserInput,
 } from "@/actions/internal-users";
@@ -13,6 +14,7 @@ import type { InternalUserListItem } from "@/actions/internal-users";
 import { formatUserRole, ROLE_LABELS, SPECIALTY_LABELS } from "@/lib/roles";
 
 const CREATABLE_ROLES: Role[] = ["MEDICO", "ENFERMERA", "ADMINISTRATIVO"];
+const PAGE_SIZE = 10;
 
 type Props = {
   users: InternalUserListItem[];
@@ -28,16 +30,26 @@ export function InternalUsersPanel({ users }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<InternalUserListItem | null>(null);
   const [editForm, setEditForm] = useState<UpdateInternalUserInput | null>(null);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
   const [scrollTrigger, setScrollTrigger] = useState(0);
   const [isHighlighting, setIsHighlighting] = useState(false);
   const editSectionRef = useRef<HTMLElement | null>(null);
+  const [editMessage, setEditMessage] = useState<string | null>(null);
+
+  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+  // Si el listado se achica (p. ej. tras un refresh), no se queda en una página inexistente.
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageUsers = users.slice(pageStart, pageStart + PAGE_SIZE);
 
   const startEdit = (user: InternalUserListItem) => {
     setMessage(null);
+    setEditMessage(null);
     setEditErrors({});
     setEditing(user);
     setEditForm({
@@ -70,6 +82,7 @@ export function InternalUsersPanel({ users }: Props) {
     setEditing(null);
     setEditForm(null);
     setEditErrors({});
+    setEditMessage(null);
   };
 
   const setField = <K extends keyof UpdateInternalUserInput>(
@@ -82,18 +95,30 @@ export function InternalUsersPanel({ users }: Props) {
     if (!editing || !editForm) return;
     setSaving(true);
     setEditErrors({});
-    const result = await updateInternalUser(editing.id, {
-      ...editForm,
-      specialty: editForm.role === "MEDICO" ? editForm.specialty : null,
-    });
+    setEditMessage(null);
+    let result: Awaited<ReturnType<typeof updateInternalUser>>;
+    try {
+      result = await updateInternalUser(editing.id, {
+        ...editForm,
+        specialty: editForm.role === "MEDICO" ? editForm.specialty : null,
+      });
+    } catch (err) {
+      console.error("updateInternalUser:", err);
+      setSaving(false);
+      setEditMessage("No se pudo guardar. Probá de nuevo en unos segundos.");
+      return;
+    }
     setSaving(false);
-    setMessage(result.message ?? null);
     if (!result.success) {
+      // El error se muestra dentro del formulario, no arriba de todo la página.
+      setEditMessage(result.message ?? "No se pudo guardar.");
       setEditErrors(result.errors ?? {});
       return;
     }
     cancelEdit();
+    setMessage(result.message ?? "Usuario actualizado.");
     router.refresh();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -135,6 +160,20 @@ export function InternalUsersPanel({ users }: Props) {
     setDeactivatingId(user.id);
     const result = await deactivateInternalUser(user.id);
     setDeactivatingId(null);
+    setMessage(result.message ?? null);
+    if (result.success) router.refresh();
+  };
+
+  const handleReactivate = async (user: InternalUserListItem) => {
+    const name = `${user.firstName} ${user.lastName}`;
+    const confirmed = window.confirm(
+      `¿Dar de alta nuevamente a ${name}? Podrá volver a iniciar sesión.`
+    );
+    if (!confirmed) return;
+
+    setReactivatingId(user.id);
+    const result = await reactivateInternalUser(user.id);
+    setReactivatingId(null);
     setMessage(result.message ?? null);
     if (result.success) router.refresh();
   };
@@ -246,17 +285,19 @@ export function InternalUsersPanel({ users }: Props) {
         <h2 className="text-lg font-bold text-ink">Usuarios activos e histórico</h2>
 
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[680px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-line text-ink-secondary">
                 <th className="py-2 pr-4 font-semibold">Nombre</th>
                 <th className="py-2 pr-4 font-semibold">Rol</th>
+                <th className="py-2 pr-4 font-semibold">Documento</th>
+                <th className="py-2 pr-4 font-semibold">Teléfono</th>
                 <th className="py-2 pr-4 font-semibold">Estado</th>
                 <th className="py-2 font-semibold">Acción</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {pageUsers.map((user) => (
                 <tr key={user.id} className="border-b border-line/80">
                   <td className="py-3 pr-4">
                     {user.firstName} {user.lastName}
@@ -264,6 +305,10 @@ export function InternalUsersPanel({ users }: Props) {
                   <td className="py-3 pr-4">
                     {formatUserRole(user.role, user.specialty, user.specialtyRaw)}
                   </td>
+                  <td className="py-3 pr-4">
+                    {user.docNumber ? `${user.docType} ${user.docNumber}` : "—"}
+                  </td>
+                  <td className="py-3 pr-4">{user.phone || "—"}</td>
                   <td className="py-3 pr-4">
                     <span
                       className={
@@ -294,6 +339,15 @@ export function InternalUsersPanel({ users }: Props) {
                           Dar de baja
                         </button>
                       </div>
+                    ) : !user.isActive && user.role !== "ADMINISTRADOR" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleReactivate(user)}
+                        disabled={reactivatingId === user.id}
+                        className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary-light disabled:opacity-60"
+                      >
+                        {reactivatingId === user.id ? "Dando de alta…" : "Dar de alta"}
+                      </button>
                     ) : (
                       <span className="text-xs text-ink-muted">—</span>
                     )}
@@ -303,6 +357,38 @@ export function InternalUsersPanel({ users }: Props) {
             </tbody>
           </table>
         </div>
+
+        {users.length > PAGE_SIZE && (
+          <nav
+            aria-label="Paginación del listado"
+            className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm"
+          >
+            <span className="text-xs text-ink-secondary">
+              {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, users.length)} de {users.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-background disabled:opacity-40"
+              >
+                Anterior
+              </button>
+              <span className="text-xs text-ink-secondary">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-background disabled:opacity-40"
+              >
+                Siguiente
+              </button>
+            </div>
+          </nav>
+        )}
 
         <p className="mt-4 text-xs text-ink-secondary">
           La baja solicita confirmación y conserva trazabilidad según la regla del sistema.
@@ -321,6 +407,15 @@ export function InternalUsersPanel({ users }: Props) {
           <h2 className="text-lg font-bold text-ink">
             Editar a {editing.firstName} {editing.lastName}
           </h2>
+
+          {editMessage && (
+            <div
+              className="mt-4 rounded-lg border border-error/40 bg-error/5 px-4 py-3 text-sm text-error"
+              role="alert"
+            >
+              {editMessage}
+            </div>
+          )}
 
           <form onSubmit={handleUpdate} className="mt-6 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">

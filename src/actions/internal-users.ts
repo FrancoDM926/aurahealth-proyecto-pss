@@ -445,3 +445,56 @@ export async function deactivateInternalUser(userId: string): Promise<ActionResu
     return { success: false, message: "Error al dar de baja al usuario." };
   }
 }
+
+/**
+ * US-03: el administrador vuelve a dar de alta a un usuario interno dado de baja.
+ * Se reutiliza el mismo registro (con su historial) en lugar de crear uno nuevo.
+ */
+export async function reactivateInternalUser(userId: string): Promise<ActionResult> {
+  try {
+    await assertAdministrator();
+  } catch {
+    return { success: false, message: "No tenés permisos para esta acción." };
+  }
+
+  const target = await db.user.findUnique({ where: { id: userId } });
+  if (!target) {
+    return { success: false, message: "Usuario no encontrado." };
+  }
+  if (target.isActive) {
+    return { success: false, message: "El usuario ya está activo." };
+  }
+
+  const client = await clerkClient();
+  let targetRole: Role | null;
+  try {
+    const targetClerkUser = await client.users.getUser(target.clerkUserId);
+    targetRole = parseClerkRole(targetClerkUser.publicMetadata?.role);
+  } catch (error) {
+    console.error("reactivateInternalUser:", error);
+    return { success: false, message: "No se pudo consultar el usuario en Clerk." };
+  }
+  if (!targetRole || !CREATABLE_ROLES.includes(targetRole)) {
+    return {
+      success: false,
+      message: "Solo se pueden dar de alta médicos, enfermeras y administrativos.",
+    };
+  }
+
+  try {
+    // Primero se levanta la suspensión en Clerk: sin eso, el usuario figuraría
+    // activo pero no podría iniciar sesión.
+    await client.users.unbanUser(target.clerkUserId);
+
+    await db.user.update({
+      where: { id: userId },
+      data: { isActive: true, deactivatedAt: null },
+    });
+
+    revalidatePath("/dashboard/admin/usuarios");
+    return { success: true, message: "Usuario dado de alta nuevamente." };
+  } catch (error) {
+    console.error("reactivateInternalUser:", error);
+    return { success: false, message: "Error al dar de alta al usuario." };
+  }
+}
