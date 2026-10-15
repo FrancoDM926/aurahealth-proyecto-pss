@@ -123,3 +123,30 @@ model Configuracion {
   maxJornadasSemana Int      @default(7)
   updatedAt         DateTime @updatedAt
 }
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// Registro auditable de notificaciones por email (US-21 / RF-NOT-01)
+model EmailAuditLog {
+  id        String      @id @default(cuid())
+  recipient String
+  template  String
+  subject   String
+  status    EmailStatus @default(PENDING)
+  attempts  Int         @default(0)
+  lastError String?
+  metadata  Json?
+  sentAt    DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([recipient])
+  @@index([status])
+  @@index([template])
+  @@index([createdAt])
+}
+
