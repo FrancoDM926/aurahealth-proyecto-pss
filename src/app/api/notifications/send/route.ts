@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { to, template, params, metadata, maxRetries } = body;
+    const { to, template, params, maxRetries } = body;
 
     if (!to || typeof to !== "string") {
       return NextResponse.json(
@@ -64,7 +64,6 @@ export async function POST(req: NextRequest) {
       to,
       template: template as NotificationTemplateType,
       params,
-      metadata,
       maxRetries,
     });
 

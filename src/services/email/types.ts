@@ -91,7 +91,6 @@ export interface SendNotificationOptions<T extends NotificationTemplateType = No
   params: NotificationTemplateParamsMap[T];
   maxRetries?: number;
   initialDelayMs?: number;
-  metadata?: Record<string, unknown>;
 }
 
 export interface SendNotificationResult {

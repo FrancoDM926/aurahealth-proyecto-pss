@@ -32,7 +32,6 @@ export async function sendNotificationEmail<T extends NotificationTemplateType>(
     params,
     maxRetries = 3,
     initialDelayMs = 500,
-    metadata,
   } = options;
 
   if (!to || !to.includes("@")) {
@@ -52,7 +51,6 @@ export async function sendNotificationEmail<T extends NotificationTemplateType>(
         subject: rendered.subject,
         status: "PENDING",
         attempts: 0,
-        metadata: (metadata as object) || {},
       },
     });
     auditLogId = createdLog.id;

@@ -139,7 +139,6 @@ model EmailAuditLog {
   status    EmailStatus @default(PENDING)
   attempts  Int         @default(0)
   lastError String?
-  metadata  Json?
   sentAt    DateTime?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
