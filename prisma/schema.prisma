@@ -96,6 +96,14 @@ enum EstadoTurno {
   CANCELADO
 }
 
+/// US-15: estado del recordatorio automático del turno. Funciona como candado de
+/// idempotencia: mientras está PENDIENTE el proceso puede reclamarlo; una vez
+/// ENVIADO no se vuelve a enviar aunque el proceso se reintente.
+enum EstadoRecordatorio {
+  PENDIENTE
+  ENVIADO
+}
+
 model Turno {
   id        String               @id @default(cuid())
   doctorId  String
@@ -118,10 +126,19 @@ model Turno {
   motivoConsulta   String?
   reservedAt       DateTime?
 
+  // US-15: recordatorio automático del turno (RF-TUR-04, RF-NOT-01).
+  recordatorioEstado      EstadoRecordatorio @default(PENDIENTE)
+  recordatorioEnviadoAt   DateTime?
+  recordatorioIntentos    Int                @default(0)
+  recordatorioUltimoError String?
+  /** Id del registro en EmailAuditLog que dejó el envío (US-21). */
+  recordatorioEmailLogId  String?
+
   @@unique([doctorId, date, startTime])
   @@index([doctorId, date])
   @@index([status, date])
   @@index([reservedById])
+  @@index([recordatorioEstado, date])
 }
 
 
@@ -133,6 +150,8 @@ model Configuracion {
   maxJornadasSemana Int      @default(7)
   // US-14: dirección de la sala que se informa en el email de confirmación de turno.
   salaDireccion     String?
+  // US-15: antelación del recordatorio de turno, en horas (inicial 24).
+  recordatorioAntelacionHoras Int @default(24)
   updatedAt         DateTime @updatedAt
 }
 

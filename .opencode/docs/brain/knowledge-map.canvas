@@ -1,0 +1,60 @@
+{
+  "nodes": [
+    {
+      "id": "objective",
+      "type": "text",
+      "text": "Objective\nImplementá la US-15. Si es posible, utilizar el envio programado de GMAIL.",
+      "x": 0,
+      "y": 0,
+      "width": 360,
+      "height": 180
+    },
+    {
+      "id": "runtime",
+      "type": "text",
+      "text": "Runtime\nIteration 1/1000000000\nProgress unknown",
+      "x": 420,
+      "y": 0,
+      "width": 360,
+      "height": 180
+    },
+    {
+      "id": "verification",
+      "type": "text",
+      "text": "Verification\nunknown",
+      "x": 840,
+      "y": 0,
+      "width": 360,
+      "height": 180
+    },
+    {
+      "id": "event-0",
+      "type": "text",
+      "text": "mission_started\nMission loop started",
+      "x": 0,
+      "y": 260,
+      "width": 360,
+      "height": 180
+    }
+  ],
+  "edges": [
+    {
+      "id": "objective-runtime",
+      "fromNode": "objective",
+      "toNode": "runtime",
+      "label": "drives"
+    },
+    {
+      "id": "runtime-verification",
+      "fromNode": "runtime",
+      "toNode": "verification",
+      "label": "checks"
+    },
+    {
+      "id": "verification-event-0",
+      "fromNode": "verification",
+      "toNode": "event-0",
+      "label": "evidence"
+    }
+  ]
+}
