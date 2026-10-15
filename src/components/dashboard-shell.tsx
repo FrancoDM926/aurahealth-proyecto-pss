@@ -11,7 +11,8 @@ type NavKey =
   | "configuracion"
   | "agenda"
   | "disponibilidad"
-  | "agenda-generada";
+  | "agenda-generada"
+  | "reservar";
 
 type DashboardShellProps = {
   userName: string;
@@ -36,6 +37,7 @@ export function DashboardShell({
 
   const links: { key: NavKey; href: string; label: string; roles: Role[] }[] = [
     { key: "inicio", href: "/dashboard", label: "Inicio", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },
+    { key: "reservar", href: "/dashboard/reservar", label: "Reservar turno", roles: ["USUARIO"] },
     { key: "agenda", href: "/dashboard/agenda", label: "Mi agenda", roles: ["MEDICO"] },
     { key: "disponibilidad", href: "/dashboard/disponibilidad", label: "Disponibilidad", roles: ["MEDICO"] },
     { key: "agenda-generada", href: "/dashboard/agenda-generada", label: "Generación de turnos", roles: ["MEDICO"] },

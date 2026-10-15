@@ -13,3 +13,15 @@ export async function getLimitesJornadas(): Promise<LimitesJornadas> {
   if (!config) return LIMITES_JORNADAS_DEFAULT;
   return { min: config.minJornadasSemana, max: config.maxJornadasSemana };
 }
+
+/** Dirección de la sala informada en los emails (US-14). */
+export const SALA_DIRECCION_DEFAULT = "Consultorios Centrales AuraHealth";
+
+export async function getSalaDireccion(): Promise<string> {
+  const config = await db.configuracion.findUnique({
+    where: { id: 1 },
+    select: { salaDireccion: true },
+  });
+  const direccion = config?.salaDireccion?.trim();
+  return direccion && direccion.length > 0 ? direccion : SALA_DIRECCION_DEFAULT;
+}

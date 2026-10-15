@@ -19,6 +19,13 @@ export interface ConfirmacionTurnoMedicoParams {
   hora: string; // ej. "09:30"
   direccion?: string;
   costoConsulta?: number;
+  /**
+   * US-14: nombre de la persona atendida cuando el turno se reservó a nombre de
+   * otra persona. Ausente cuando el turno es del propio destinatario.
+   */
+  aNombreDe?: string;
+  /** US-14: enlace directo a "Mis turnos" para cancelar. Opcional. */
+  cancelUrl?: string;
 }
 
 export interface CancelacionTurnoMedicoParams {

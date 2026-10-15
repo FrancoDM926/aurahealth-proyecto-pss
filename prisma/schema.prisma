@@ -55,6 +55,7 @@ model User {
 
   monthlyAvailabilities MonthlyAvailability[]
   turnos                Turno[]                 @relation("DoctorTurnos")
+  turnosReservados      Turno[]                 @relation("ReservedTurnos")
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -109,9 +110,18 @@ model Turno {
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
 
+  // Reserva (US-13 mínimo, consumido por US-14). Nulos mientras está DISPONIBLE.
+  reservedById     String?
+  reservedBy       User?     @relation("ReservedTurnos", fields: [reservedById], references: [id], onDelete: SetNull)
+  patientFirstName String?
+  patientLastName  String?
+  motivoConsulta   String?
+  reservedAt       DateTime?
+
   @@unique([doctorId, date, startTime])
   @@index([doctorId, date])
   @@index([status, date])
+  @@index([reservedById])
 }
 
 
@@ -121,6 +131,8 @@ model Configuracion {
   // US-06 / RN-02: límites de jornadas por semana
   minJornadasSemana Int      @default(2)
   maxJornadasSemana Int      @default(7)
+  // US-14: dirección de la sala que se informa en el email de confirmación de turno.
+  salaDireccion     String?
   updatedAt         DateTime @updatedAt
 }
 

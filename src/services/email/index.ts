@@ -40,7 +40,6 @@ export async function sendNotificationEmail<T extends NotificationTemplateType>(
 
   // 1. Renderizar plantilla parametrizada
   const rendered = renderNotificationTemplate(template, params);
-
   // 2. Registro auditable inicial en Base de Datos (si db está disponible)
   let auditLogId: string | undefined;
   try {

@@ -10,10 +10,24 @@ export function renderConfirmacionTurnoMedico(
 ): RenderedEmail {
   const subject = `Confirmación de Turno: ${params.especialidad} - ${params.fecha} ${params.hora}`;
 
+  const esParaOtraPersona = Boolean(params.aNombreDe && params.aNombreDe.trim());
+  const intro = esParaOtraPersona
+    ? `La consulta médica a nombre de <strong>${params.aNombreDe}</strong> fue reservada con éxito en AuraHealth. Estos son los detalles del turno:`
+    : "Tu consulta médica fue reservada con éxito en AuraHealth. Estos son los detalles de tu turno:";
+  const filaTitular = esParaOtraPersona
+    ? `<tr><td class="label">A nombre de:</td><td class="value">${params.aNombreDe}</td></tr>`
+    : "";
+  const instruccionesCancelacion = `
+    <div style="margin-top: 20px; padding: 14px 18px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; color: #475569;">
+      <strong style="display: block; color: #0f172a; margin-bottom: 4px;">¿Necesitás cancelar el turno?</strong>
+      Ingresá a tu cuenta de AuraHealth, abrí la sección <strong>Mis turnos</strong> y elegí <strong>Cancelar</strong> sobre este turno.${params.cancelUrl ? ` También podés hacerlo desde <a href="${params.cancelUrl}" style="color: #0d9488; text-decoration: underline;">este enlace</a>.` : ""}
+    </div>
+  `;
+
   const contentHtml = `
     <span class="badge badge-teal">Turno Confirmado</span>
     <h2 style="font-size: 20px; color: #0f172a; margin: 12px 0 8px 0;">¡Hola, ${params.pacienteNombre}!</h2>
-    <p style="color: #475569; margin: 0 0 16px 0;">Tu consulta médica ha sido reservada con éxito en AuraHealth. A continuación te acercamos los detalles de tu turno:</p>
+    <p style="color: #475569; margin: 0 0 16px 0;">${intro}</p>
 
     <div class="card-detail">
       <table>
@@ -43,8 +57,11 @@ export function renderConfirmacionTurnoMedico(
             ? `<tr><td class="label">Costo consulta:</td><td class="value">$${params.costoConsulta.toLocaleString("es-AR")}</td></tr>`
             : ""
         }
+        ${filaTitular}
       </table>
     </div>
+
+    ${instruccionesCancelacion}
 
     <p style="font-size: 13px; color: #64748b; margin-top: 20px;">
       <strong>Recordatorio:</strong> Te sugerimos presentarte 10 minutos antes del horario indicado con tu documento de identidad y credencial de cobertura médica en caso de corresponder.
@@ -61,16 +78,18 @@ export function renderConfirmacionTurnoMedico(
 AuraHealth - Confirmación de Turno Médico
 
 Hola, ${params.pacienteNombre}:
-Tu consulta médica ha sido reservada con éxito.
+${esParaOtraPersona ? `La consulta médica a nombre de ${params.aNombreDe} fue reservada con éxito.` : "Tu consulta médica fue reservada con éxito."}
 
 Detalles del turno:
 - Especialidad: ${params.especialidad}
 - Profesional: ${params.doctorNombre}
 - Fecha: ${params.fecha}
 - Horario: ${params.hora} hs (30 minutos)
-${params.costoConsulta ? `- Costo: $${params.costoConsulta}` : ""}
-
+${params.costoConsulta ? `- Costo: $${params.costoConsulta}\n` : ""}${esParaOtraPersona ? `- A nombre de: ${params.aNombreDe}\n` : ""}
 Ubicación: ${params.direccion || "Consultorios Centrales AuraHealth"}
+
+¿Necesitás cancelar el turno?
+Ingresá a tu cuenta de AuraHealth, abrí la sección "Mis turnos" y elegí "Cancelar" sobre este turno.${params.cancelUrl ? ` También podés hacerlo desde: ${params.cancelUrl}` : ""}
 
 Por favor presentate 10 minutos antes con tu documento.
   `.trim();
