@@ -55,6 +55,8 @@ model User {
 
   monthlyAvailabilities MonthlyAvailability[]
   turnos                Turno[]                 @relation("DoctorTurnos")
+  turnosReservados      Turno[]                 @relation("ReservedTurnos")
+  cambiosEstadoTurno    TurnoEstadoAuditLog[]   @relation("TurnoEstadoCambiadoPor")
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -109,9 +111,38 @@ model Turno {
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
 
+  // Datos de reserva del paciente (US-13 / US-18). Nulos mientras está DISPONIBLE.
+  reservedById     String?
+  reservedBy       User?     @relation("ReservedTurnos", fields: [reservedById], references: [id], onDelete: SetNull)
+  patientFirstName String?
+  patientLastName  String?
+  motivoConsulta   String?
+  reservedAt       DateTime?
+
+  // US-18 (RF-TUR-07): historial auditable de cambios de estado del turno.
+  estadoAuditLogs  TurnoEstadoAuditLog[]
+
   @@unique([doctorId, date, startTime])
   @@index([doctorId, date])
   @@index([status, date])
+  @@index([reservedById])
+}
+
+/// US-18 (RF-TUR-07): Constancia auditable de quién cambió el estado de un turno y cuándo.
+model TurnoEstadoAuditLog {
+  id             String      @id @default(cuid())
+  turnoId        String
+  turno          Turno       @relation(fields: [turnoId], references: [id], onDelete: Cascade)
+  previousStatus EstadoTurno
+  newStatus      EstadoTurno
+  changedById    String
+  changedBy      User        @relation("TurnoEstadoCambiadoPor", fields: [changedById], references: [id], onDelete: Restrict)
+  changedByName  String
+  changedByRole  Role
+  changedAt      DateTime    @default(now())
+
+  @@index([turnoId])
+  @@index([changedAt])
 }
 
 
