@@ -1,7 +1,9 @@
 import { DashboardShell } from "@/components/dashboard-shell";
 import { LimitesJornadasForm } from "@/components/limites-jornadas-form";
+import { SalaDireccionForm } from "@/components/sala-direccion-form";
+import { RecordatorioAntelacionForm } from "@/components/recordatorio-antelacion-form";
 import { requireRoles } from "@/lib/auth-session";
-import { getLimitesJornadas } from "@/lib/configuracion";
+import { getLimitesJornadas, getRecordatorioAntelacion, getSalaDireccion } from "@/lib/configuracion";
 
 export const metadata = {
   title: "Administración — Configuración",
@@ -13,6 +15,8 @@ export const dynamic = "force-dynamic";
 export default async function ConfiguracionPage() {
   const { role, profile } = await requireRoles(["ADMINISTRADOR"]);
   const limites = await getLimitesJornadas();
+  const salaDireccion = await getSalaDireccion();
+  const antelacionRecordatorio = await getRecordatorioAntelacion();
 
   return (
     <DashboardShell
@@ -25,8 +29,10 @@ export default async function ConfiguracionPage() {
           Administración — Configuración
         </h1>
 
-        <div className="mt-8">
+        <div className="mt-8 space-y-6">
           <LimitesJornadasForm initial={limites} />
+          <SalaDireccionForm initial={salaDireccion} />
+          <RecordatorioAntelacionForm initial={antelacionRecordatorio} />
         </div>
       </div>
     </DashboardShell>

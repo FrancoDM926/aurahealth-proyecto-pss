@@ -97,6 +97,14 @@ enum EstadoTurno {
   CANCELADO
 }
 
+/// US-15: estado del recordatorio automático del turno. Funciona como candado de
+/// idempotencia: mientras está PENDIENTE el proceso puede reclamarlo; una vez
+/// ENVIADO no se vuelve a enviar aunque el proceso se reintente.
+enum EstadoRecordatorio {
+  PENDIENTE
+  ENVIADO
+}
+
 model Turno {
   id        String               @id @default(cuid())
   doctorId  String
@@ -112,12 +120,22 @@ model Turno {
   updatedAt DateTime             @updatedAt
 
   // Datos de reserva del paciente (US-13 / US-18). Nulos mientras está DISPONIBLE.
+  // MOCK US-13 (provisional, consumido por US-14): reemplazar por el modelo
+  // definitivo cuando el equipo implemente US-13 completa.
   reservedById     String?
   reservedBy       User?     @relation("ReservedTurnos", fields: [reservedById], references: [id], onDelete: SetNull)
   patientFirstName String?
   patientLastName  String?
   motivoConsulta   String?
   reservedAt       DateTime?
+
+  // US-15: recordatorio automático del turno (RF-TUR-04, RF-NOT-01).
+  recordatorioEstado      EstadoRecordatorio @default(PENDIENTE)
+  recordatorioEnviadoAt   DateTime?
+  recordatorioIntentos    Int                @default(0)
+  recordatorioUltimoError String?
+  /** Id del registro en EmailAuditLog que dejó el envío (US-21). */
+  recordatorioEmailLogId  String?
 
   // US-18 (RF-TUR-07): historial auditable de cambios de estado del turno.
   estadoAuditLogs  TurnoEstadoAuditLog[]
@@ -126,6 +144,7 @@ model Turno {
   @@index([doctorId, date])
   @@index([status, date])
   @@index([reservedById])
+  @@index([recordatorioEstado, date])
 }
 
 /// US-18 (RF-TUR-07): Constancia auditable de quién cambió el estado de un turno y cuándo.
@@ -152,6 +171,10 @@ model Configuracion {
   // US-06 / RN-02: límites de jornadas por semana
   minJornadasSemana Int      @default(2)
   maxJornadasSemana Int      @default(7)
+  // US-14: dirección de la sala que se informa en el email de confirmación de turno.
+  salaDireccion     String?
+  // US-15: antelación del recordatorio de turno, en horas (inicial 24).
+  recordatorioAntelacionHoras Int @default(24)
   updatedAt         DateTime @updatedAt
 }
 
@@ -171,3 +194,29 @@ model Vacuna {
 
   @@index([isActive, denominacion])
 }
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// Registro auditable de notificaciones por email (US-21 / RF-NOT-01)
+model EmailAuditLog {
+  id        String      @id @default(cuid())
+  recipient String
+  template  String
+  subject   String
+  status    EmailStatus @default(PENDING)
+  attempts  Int         @default(0)
+  lastError String?
+  sentAt    DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([recipient])
+  @@index([status])
+  @@index([template])
+  @@index([createdAt])
+}
+
