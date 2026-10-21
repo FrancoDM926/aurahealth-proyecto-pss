@@ -10,6 +10,7 @@ type NavKey =
   | "mis-datos"
   | "usuarios"
   | "configuracion"
+  | "emails"
   | "agenda"
   | "disponibilidad"
   | "agenda-generada"
@@ -47,6 +48,7 @@ export function DashboardShell({
     { key: "estado-turnos", href: "/dashboard/estado-turnos", label: "Estado de turnos", roles: ["MEDICO", "ADMINISTRATIVO"] },
     { key: "usuarios", href: "/dashboard/admin/usuarios", label: "Usuarios", roles: ["ADMINISTRADOR"] },
     { key: "configuracion", href: "/dashboard/admin/configuracion", label: "Configuración", roles: ["ADMINISTRADOR"] },
+    { key: "emails", href: "/dashboard/admin/emails", label: "Emails", roles: ["ADMINISTRADOR"] },
     { key: "mis-datos", href: "/dashboard/mis-datos", label: "Mi cuenta", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },
   ];
 

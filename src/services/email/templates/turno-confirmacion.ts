@@ -1,19 +1,38 @@
 import {
+  getAsuntoPlantilla,
+  getMensajePorDefecto,
+  renderMensajeHtml,
+  renderMensajeTexto,
+} from "../catalogo";
+import {
   ConfirmacionTurnoMedicoParams,
   ConfirmacionTurnoVacunatorioParams,
+  RenderTemplateOptions,
   RenderedEmail,
 } from "../types";
 import { renderBaseLayout } from "./base-layout";
 
+/**
+ * US-14. El asunto es fijo por plantilla (wireframe `wf_servicio_email.html`) y
+ * el cuerpo sale del mensaje que administra US-21: se reemplazan las variables
+ * y se conservan los datos del turno en su tarjeta.
+ */
 export function renderConfirmacionTurnoMedico(
-  params: ConfirmacionTurnoMedicoParams
+  params: ConfirmacionTurnoMedicoParams,
+  opciones?: RenderTemplateOptions
 ): RenderedEmail {
-  const subject = `Confirmación de Turno: ${params.especialidad} - ${params.fecha} ${params.hora}`;
+  const subject =
+    getAsuntoPlantilla("CONFIRMACION_TURNO_MEDICO") ?? "Confirmación de turno";
+  const mensaje =
+    opciones?.mensaje ?? getMensajePorDefecto("CONFIRMACION_TURNO_MEDICO") ?? "";
+  const valores: Record<string, string | undefined> = {
+    paciente: params.pacienteNombre,
+    profesional: params.doctorNombre,
+    fecha: params.fecha,
+    hora: params.hora,
+  };
 
   const esParaOtraPersona = Boolean(params.aNombreDe && params.aNombreDe.trim());
-  const intro = esParaOtraPersona
-    ? `La consulta médica a nombre de <strong>${params.aNombreDe}</strong> fue reservada con éxito en AuraHealth. Estos son los detalles del turno:`
-    : "Tu consulta médica fue reservada con éxito en AuraHealth. Estos son los detalles de tu turno:";
   const filaTitular = esParaOtraPersona
     ? `<tr><td class="label">A nombre de:</td><td class="value">${params.aNombreDe}</td></tr>`
     : "";
@@ -26,8 +45,7 @@ export function renderConfirmacionTurnoMedico(
 
   const contentHtml = `
     <span class="badge badge-teal">Turno Confirmado</span>
-    <h2 style="font-size: 20px; color: #0f172a; margin: 12px 0 8px 0;">¡Hola, ${params.pacienteNombre}!</h2>
-    <p style="color: #475569; margin: 0 0 16px 0;">${intro}</p>
+    <p style="color: #334155; margin: 14px 0 4px 0; font-size: 15px;">${renderMensajeHtml(mensaje, valores)}</p>
 
     <div class="card-detail">
       <table>
@@ -77,8 +95,7 @@ export function renderConfirmacionTurnoMedico(
   const text = `
 AuraHealth - Confirmación de Turno Médico
 
-Hola, ${params.pacienteNombre}:
-${esParaOtraPersona ? `La consulta médica a nombre de ${params.aNombreDe} fue reservada con éxito.` : "Tu consulta médica fue reservada con éxito."}
+${renderMensajeTexto(mensaje, valores)}
 
 Detalles del turno:
 - Especialidad: ${params.especialidad}

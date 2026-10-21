@@ -1,6 +1,7 @@
 import {
   NotificationTemplateParamsMap,
   NotificationTemplateType,
+  RenderTemplateOptions,
   RenderedEmail,
 } from "../types";
 import {
@@ -18,7 +19,8 @@ import {
 import { renderRecordatorioTurno } from "./turno-recordatorio";
 
 type TemplateRenderer<T extends NotificationTemplateType> = (
-  params: NotificationTemplateParamsMap[T]
+  params: NotificationTemplateParamsMap[T],
+  opciones?: RenderTemplateOptions
 ) => RenderedEmail;
 
 /**
@@ -40,10 +42,13 @@ const templateRegistry: {
 
 /**
  * Renderiza la plantilla indicada con sus parámetros fuertemente tipados.
+ * `opciones.mensaje` es el cuerpo que cargó el administrador en la pantalla
+ * «Emails» (US-21); sin él, rige el mensaje por defecto de la plantilla.
  */
 export function renderNotificationTemplate<T extends NotificationTemplateType>(
   template: T,
-  params: NotificationTemplateParamsMap[T]
+  params: NotificationTemplateParamsMap[T],
+  opciones?: RenderTemplateOptions
 ): RenderedEmail {
   const renderer = templateRegistry[template] as TemplateRenderer<T> | undefined;
 
@@ -51,7 +56,7 @@ export function renderNotificationTemplate<T extends NotificationTemplateType>(
     throw new Error(`[EmailService] Plantilla desconocida: ${String(template)}`);
   }
 
-  return renderer(params);
+  return renderer(params, opciones);
 }
 
 export {

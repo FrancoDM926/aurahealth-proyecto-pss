@@ -1,17 +1,38 @@
-import { RecordatorioTurnoParams, RenderedEmail } from "../types";
+import {
+  getAsuntoPlantilla,
+  getMensajePorDefecto,
+  renderMensajeHtml,
+  renderMensajeTexto,
+} from "../catalogo";
+import {
+  RecordatorioTurnoParams,
+  RenderTemplateOptions,
+  RenderedEmail,
+} from "../types";
 import { renderBaseLayout } from "./base-layout";
 
+/**
+ * US-15. Asunto fijo y mensaje administrado por US-21 (wireframe
+ * `wf_servicio_email.html`); los datos del turno viajan en la tarjeta.
+ */
 export function renderRecordatorioTurno(
-  params: RecordatorioTurnoParams
+  params: RecordatorioTurnoParams,
+  opciones?: RenderTemplateOptions
 ): RenderedEmail {
-  const subject = `Recordatorio: Tenés un turno programado para el ${params.fecha} a las ${params.hora}`;
+  const subject =
+    getAsuntoPlantilla("RECORDATORIO_TURNO") ?? "Recordatorio de turno";
+  const mensaje =
+    opciones?.mensaje ?? getMensajePorDefecto("RECORDATORIO_TURNO") ?? "";
+  const valores: Record<string, string | undefined> = {
+    paciente: params.pacienteNombre,
+    profesional: params.profesionalOArea,
+    fecha: params.fecha,
+    hora: params.hora,
+  };
 
   const contentHtml = `
     <span class="badge badge-amber">Recordatorio de Turno</span>
-    <h2 style="font-size: 20px; color: #0f172a; margin: 12px 0 8px 0;">¡Hola, ${params.pacienteNombre}!</h2>
-    <p style="color: #475569; margin: 0 0 16px 0;">
-      Te recordamos que se aproxima tu turno en AuraHealth.
-    </p>
+    <p style="color: #334155; margin: 14px 0 4px 0; font-size: 15px;">${renderMensajeHtml(mensaje, valores)}</p>
 
     <div class="card-detail">
       <table>
@@ -48,8 +69,7 @@ export function renderRecordatorioTurno(
   const text = `
 AuraHealth - Recordatorio de Turno
 
-Hola, ${params.pacienteNombre}:
-Te recordamos tu próximo turno en AuraHealth.
+${renderMensajeTexto(mensaje, valores)}
 
 - Atención: ${params.tipoTurno}
 - Profesional/Sector: ${params.profesionalOArea}

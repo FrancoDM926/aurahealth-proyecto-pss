@@ -92,6 +92,15 @@ export interface RenderedEmail {
   text: string;
 }
 
+/**
+ * Opciones de render (US-21). `mensaje` es el cuerpo que cargó el administrador
+ * en la pantalla «Emails»; cuando no llega, cada plantilla usa su mensaje por
+ * defecto del catálogo.
+ */
+export interface RenderTemplateOptions {
+  mensaje?: string;
+}
+
 export interface SendNotificationOptions<T extends NotificationTemplateType = NotificationTemplateType> {
   to: string;
   template: T;
@@ -106,4 +115,10 @@ export interface SendNotificationResult {
   attempts: number;
   messageId?: string;
   error?: string;
+  /**
+   * US-21: `true` cuando el envío ni se intentó porque el destinatario ya
+   * acumuló la cantidad máxima de envíos fallidos configurable en la pantalla
+   * «Emails».
+   */
+  limitado?: boolean;
 }

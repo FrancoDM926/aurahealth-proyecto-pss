@@ -1,19 +1,39 @@
 import {
+  getAsuntoPlantilla,
+  getMensajePorDefecto,
+  renderMensajeHtml,
+  renderMensajeTexto,
+} from "../catalogo";
+import {
   CancelacionTurnoMedicoParams,
   CancelacionTurnoVacunatorioParams,
+  RenderTemplateOptions,
   RenderedEmail,
 } from "../types";
 import { renderBaseLayout } from "./base-layout";
 
+/**
+ * US-16, administrada desde la pantalla «Emails» de US-21: asunto fijo y
+ * mensaje editable con las mismas variables del resto del flujo de turnos.
+ */
 export function renderCancelacionTurnoMedico(
-  params: CancelacionTurnoMedicoParams
+  params: CancelacionTurnoMedicoParams,
+  opciones?: RenderTemplateOptions
 ): RenderedEmail {
-  const subject = `Cancelación de Turno: ${params.especialidad} - ${params.fecha} ${params.hora}`;
+  const subject =
+    getAsuntoPlantilla("CANCELACION_TURNO_MEDICO") ?? "Cancelación de turno";
+  const mensaje =
+    opciones?.mensaje ?? getMensajePorDefecto("CANCELACION_TURNO_MEDICO") ?? "";
+  const valores: Record<string, string | undefined> = {
+    paciente: params.pacienteNombre,
+    profesional: params.doctorNombre,
+    fecha: params.fecha,
+    hora: params.hora,
+  };
 
   const contentHtml = `
     <span class="badge badge-rose">Turno Cancelado</span>
-    <h2 style="font-size: 20px; color: #0f172a; margin: 12px 0 8px 0;">Estimado/a ${params.pacienteNombre},</h2>
-    <p style="color: #475569; margin: 0 0 16px 0;">Te informamos que el turno médico que tenías programado ha sido cancelado.</p>
+    <p style="color: #334155; margin: 14px 0 4px 0; font-size: 15px;">${renderMensajeHtml(mensaje, valores)}</p>
 
     <div class="card-detail">
       <table>
@@ -55,9 +75,8 @@ export function renderCancelacionTurnoMedico(
   const text = `
 AuraHealth - Aviso de Cancelación de Turno Médico
 
-Estimado/a ${params.pacienteNombre}:
-Te informamos que tu consulta con ${params.doctorNombre} (${params.especialidad}) fijada para el ${params.fecha} a las ${params.hora} hs ha sido cancelada.
-${params.motivo ? `Motivo: ${params.motivo}\n` : ""}
+${renderMensajeTexto(mensaje, valores)}
+${params.motivo ? `\n- Motivo: ${params.motivo}\n` : ""}
 Puedes ingresar a tu cuenta de AuraHealth para reservar un nuevo turno.
   `.trim();
 

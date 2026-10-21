@@ -157,9 +157,8 @@ test("US-15 · mapper de parámetros y plantilla del recordatorio", async () => 
   // Renderizado de la plantilla RECORDATORIO_TURNO
   const { renderNotificationTemplate } = await import("../src/services/email/templates");
   const rendered = renderNotificationTemplate("RECORDATORIO_TURNO", params);
-  assert.match(rendered.subject, /Recordatorio: Tenés un turno programado/);
-  assert.match(rendered.subject, /20\/10\/2026/);
-  assert.match(rendered.subject, /10:30/);
+  // Asunto fijo por plantilla (wireframe wf_servicio_email.html, US-21).
+  assert.equal(rendered.subject, "Recordatorio: tenés un turno próximamente");
   assert.match(rendered.html, /Ana Gómez/);
   assert.match(rendered.html, /Dr\. Roberto Rossi/);
   assert.match(rendered.html, /Consulta médica/);

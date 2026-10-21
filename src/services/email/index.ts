@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { executeWithRetry } from "./retry";
+import { enviosFallidosDe, getEnviosFallidosMax, getMensajePlantilla } from "./plantillas";
 import { renderNotificationTemplate } from "./templates";
 import { getDefaultFrom, getTransporter } from "./transporter";
 import {
@@ -9,6 +10,8 @@ import {
 } from "./types";
 
 export * from "./types";
+export * from "./catalogo";
+export * from "./plantillas";
 export * from "./templates";
 export * from "./retry";
 export * from "./transporter";
@@ -38,8 +41,25 @@ export async function sendNotificationEmail<T extends NotificationTemplateType>(
     throw new Error(`[EmailService] Dirección de destinatario inválida: "${to}"`);
   }
 
-  // 1. Renderizar plantilla parametrizada
-  const rendered = renderNotificationTemplate(template, params);
+  // 0. Límite de envíos fallidos por destinatario (US-21, pantalla «Emails»):
+  //    alcanzado el límite, el sistema deja de reintentarle el envío.
+  const maxFallidos = await getEnviosFallidosMax();
+  const fallidos = await enviosFallidosDe(to);
+  if (fallidos >= maxFallidos) {
+    console.warn(
+      `[EmailService] ${to} acumula ${fallidos} envío(s) fallido(s) con límite ${maxFallidos}: se omite el envío de ${template}.`
+    );
+    return {
+      success: false,
+      attempts: 0,
+      limitado: true,
+      error: `Se alcanzó el límite de ${maxFallidos} envíos fallidos para ${to}: el sistema dejó de reintentarle el envío.`,
+    };
+  }
+
+  // 1. Renderizar plantilla parametrizada con el mensaje que administra US-21
+  const mensaje = await getMensajePlantilla(template);
+  const rendered = renderNotificationTemplate(template, params, { mensaje });
   // 2. Registro auditable inicial en Base de Datos (si db está disponible)
   let auditLogId: string | undefined;
   try {

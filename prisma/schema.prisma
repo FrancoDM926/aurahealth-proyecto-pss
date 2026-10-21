@@ -175,7 +175,20 @@ model Configuracion {
   salaDireccion     String?
   // US-15: antelación del recordatorio de turno, en horas (inicial 24).
   recordatorioAntelacionHoras Int @default(24)
+  // US-21: envíos fallidos que puede acumular un mismo destinatario antes de
+  // que el servicio deje de reintentarle (pantalla "Emails", valor inicial 3).
+  maxEnviosFallidosPorUsuario Int @default(3)
   updatedAt         DateTime @updatedAt
+}
+
+/// US-21: cuerpo editable de una plantilla de email (wireframe
+/// wf_servicio_email.html). Solo se edita el mensaje: el asunto, el remitente y
+/// los destinatarios son fijos por plantilla. Sin fila, rige el mensaje por
+/// defecto definido en el catálogo del servicio.
+model PlantillaEmail {
+  clave     String   @id // NotificationTemplateType administrable
+  mensaje   String
+  updatedAt DateTime @updatedAt
 }
 
 enum EmailStatus {

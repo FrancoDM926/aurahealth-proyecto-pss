@@ -144,7 +144,7 @@ export function renderBaseLayout({ title, preheader = "", contentHtml }: BaseLay
 </html>`;
 }
 
-function escapeHtml(str: string): string {
+export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

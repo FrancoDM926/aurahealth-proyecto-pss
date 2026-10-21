@@ -22,8 +22,8 @@ describe("US-21 — Servicio de envío de notificaciones por email", () => {
         costoConsulta: 15000,
       });
 
-      assert.match(rendered.subject, /Confirmación de Turno: Clínica Médica/);
-      assert.match(rendered.subject, /20\/10\/2026 10:30/);
+      // Asunto fijo por plantilla, según el wireframe wf_servicio_email.html.
+      assert.equal(rendered.subject, "Tu turno fue confirmado");
       assert.match(rendered.html, /Carlos Gómez/);
       assert.match(rendered.html, /Dra\. Laura Pérez/);
       assert.match(rendered.html, /Clínica Médica/);
@@ -59,7 +59,7 @@ describe("US-21 — Servicio de envío de notificaciones por email", () => {
         motivo: "Imposibilidad médica imprevista.",
       });
 
-      assert.match(rendered.subject, /Cancelación de Turno/);
+      assert.match(rendered.subject, /Tu turno fue cancelado/);
       assert.match(rendered.html, /Martín Benítez/);
       assert.match(rendered.html, /Traumatología/);
       assert.match(rendered.html, /Imposibilidad médica imprevista/);
@@ -90,7 +90,7 @@ describe("US-21 — Servicio de envío de notificaciones por email", () => {
         hora: "09:00",
       });
 
-      assert.match(rendered.subject, /Recordatorio: Tenés un turno programado/);
+      assert.match(rendered.subject, /Recordatorio: tenés un turno próximamente/);
       assert.match(rendered.html, /Federico Luna/);
       assert.match(rendered.html, /Dra\. Laura Pérez/);
       assert.match(rendered.text, /09:00 hs/);
