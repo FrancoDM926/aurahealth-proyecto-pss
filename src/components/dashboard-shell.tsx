@@ -6,13 +6,15 @@ import type { Role } from "@/generated/prisma/client";
 
 type NavKey =
   | "inicio"
+  | "turnos"
   | "mis-datos"
   | "usuarios"
   | "configuracion"
   | "agenda"
   | "disponibilidad"
   | "agenda-generada"
-  | "reservar";
+  | "reservar"
+  | "estado-turnos";
 
 type DashboardShellProps = {
   userName: string;
@@ -37,10 +39,12 @@ export function DashboardShell({
 
   const links: { key: NavKey; href: string; label: string; roles: Role[] }[] = [
     { key: "inicio", href: "/dashboard", label: "Inicio", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },
-    { key: "reservar", href: "/dashboard/reservar", label: "Reservar turno", roles: ["USUARIO"] },
+    { key: "turnos", href: "/dashboard/turnos", label: "Turnos disponibles", roles: ["USUARIO"] },
+    { key: "reservar", href: "/dashboard/reservar", label: "Reservar turno (mock)", roles: ["USUARIO"] },
     { key: "agenda", href: "/dashboard/agenda", label: "Mi agenda", roles: ["MEDICO"] },
     { key: "disponibilidad", href: "/dashboard/disponibilidad", label: "Disponibilidad", roles: ["MEDICO"] },
     { key: "agenda-generada", href: "/dashboard/agenda-generada", label: "Generación de turnos", roles: ["MEDICO"] },
+    { key: "estado-turnos", href: "/dashboard/estado-turnos", label: "Estado de turnos", roles: ["MEDICO", "ADMINISTRATIVO"] },
     { key: "usuarios", href: "/dashboard/admin/usuarios", label: "Usuarios", roles: ["ADMINISTRADOR"] },
     { key: "configuracion", href: "/dashboard/admin/configuracion", label: "Configuración", roles: ["ADMINISTRADOR"] },
     { key: "mis-datos", href: "/dashboard/mis-datos", label: "Mi cuenta", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },

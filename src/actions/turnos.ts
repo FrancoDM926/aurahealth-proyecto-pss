@@ -9,6 +9,20 @@ import {
   FranjaPreview,
   GenerationSummary,
 } from "@/lib/turno-generator";
+import {
+  agruparTurnosPorDia,
+  ahoraEnArgentina,
+  filtrarYOrdenarTurnosDisponibles,
+  MENSAJE_SIN_RESULTADOS,
+  normalizarFiltrosBusqueda,
+  rangoFechasPorDefecto,
+  type FiltrosBusquedaInput,
+  type FiltrosBusquedaNormalizados,
+  type GrupoDiaTurnos,
+  type ProfesionalBusqueda,
+  type TurnoCandidatoBusqueda,
+  type TurnoDisponiblePaciente,
+} from "@/lib/busqueda-turnos";
 import { SPECIALTY_LABELS } from "@/lib/roles";
 import { assertRoles } from "@/lib/auth-session";
 import { validateMonthlyJornadasRN02 } from "@/lib/availability-rn02";
@@ -223,6 +237,8 @@ export async function generateTurnosAction(input: {
 
     revalidatePath("/dashboard/agenda-generada");
     revalidatePath("/dashboard/disponibilidad");
+    revalidatePath("/dashboard/agenda");
+    revalidatePath("/dashboard/turnos");
 
     return {
       success: true,
@@ -238,4 +254,157 @@ export async function generateTurnosAction(input: {
     console.error("generateTurnosAction:", error);
     return fail("Ocurrió un error al guardar los turnos en la base de datos.");
   }
+}
+
+export type ResultadoBusquedaTurnos = {
+  filtros: FiltrosBusquedaNormalizados;
+  rangoDefecto: { desde: string; hasta: string };
+  profesionales: ProfesionalBusqueda[];
+  turnos: TurnoDisponiblePaciente[];
+  gruposPorDia: GrupoDiaTurnos[];
+  duracionMs: number;
+  mensajeVacio: string | null;
+};
+
+/**
+ * US-10: Búsqueda de turnos disponibles para pacientes filtrando por
+ * especialidad, profesional y rango de fechas (por defecto próximos 30 días).
+ */
+export async function buscarTurnosDisponiblesPaciente(
+  input: FiltrosBusquedaInput = {}
+): Promise<ResultadoBusquedaTurnos> {
+  await assertRoles(["USUARIO"]);
+
+  const inicioMs = performance.now();
+  const ahora = ahoraEnArgentina();
+  const rangoDefecto = rangoFechasPorDefecto(ahora.fecha);
+  const filtros = normalizarFiltrosBusqueda(input, ahora.fecha);
+
+  const effectiveDesde =
+    filtros.desde > ahora.fecha ? filtros.desde : ahora.fecha;
+
+  const [doctorsRows, confirmedMonths, turnosRows] = await Promise.all([
+    db.user.findMany({
+      where: {
+        role: "MEDICO",
+        isActive: true,
+        specialty: { not: null },
+      },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        specialty: true,
+      },
+    }),
+    filtros.error || effectiveDesde > filtros.hasta
+      ? Promise.resolve([])
+      : db.monthlyAvailability.findMany({
+          where: {
+            isConfirmed: true,
+            ...(filtros.doctorId ? { userId: filtros.doctorId } : {}),
+          },
+          select: {
+            userId: true,
+            year: true,
+            month: true,
+          },
+        }),
+    filtros.error || effectiveDesde > filtros.hasta
+      ? Promise.resolve([])
+      : db.turno.findMany({
+          where: {
+            status: "DISPONIBLE",
+            date: {
+              gte: new Date(`${effectiveDesde}T00:00:00.000Z`),
+              lte: new Date(`${filtros.hasta}T00:00:00.000Z`),
+            },
+            ...(filtros.doctorId ? { doctorId: filtros.doctorId } : {}),
+            doctor: {
+              role: "MEDICO",
+              isActive: true,
+              ...(filtros.specialty
+                ? { specialty: filtros.specialty }
+                : { specialty: { not: null } }),
+            },
+          },
+          include: {
+            doctor: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                specialty: true,
+                isActive: true,
+              },
+            },
+            jornada: {
+              select: {
+                monthlyAvailability: {
+                  select: {
+                    isConfirmed: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: [{ date: "asc" }, { startTime: "asc" }],
+        }),
+  ]);
+
+  const profesionales: ProfesionalBusqueda[] = doctorsRows
+    .filter((d): d is typeof d & { specialty: NonNullable<typeof d.specialty> } => d.specialty !== null)
+    .map((d) => ({
+      id: d.id,
+      fullName: `Dr. ${d.firstName} ${d.lastName}`,
+      specialty: d.specialty,
+      specialtyLabel: SPECIALTY_LABELS[d.specialty],
+    }));
+
+  const confirmedKeySet = new Set(
+    confirmedMonths.map((m) => `${m.userId}_${m.year}_${m.month}`)
+  );
+
+  const candidatos: TurnoCandidatoBusqueda[] = turnosRows
+    .filter((t) => t.doctor.specialty !== null)
+    .map((t) => {
+      const dateStr = formatUtcDateString(t.date);
+      const [yStr, mStr] = dateStr.split("-");
+      const monthKey = `${t.doctorId}_${Number(yStr)}_${Number(mStr)}`;
+      const isMonthConfirmed =
+        t.jornada?.monthlyAvailability?.isConfirmed === true ||
+        confirmedKeySet.has(monthKey);
+
+      const specialty = t.doctor.specialty!;
+      return {
+        id: t.id,
+        date: dateStr,
+        startTime: t.startTime,
+        endTime: t.endTime,
+        status: t.status,
+        doctorId: t.doctorId,
+        doctorName: `Dr. ${t.doctor.firstName} ${t.doctor.lastName}`,
+        specialty,
+        specialtyLabel: SPECIALTY_LABELS[specialty],
+        agendaConfirmada: isMonthConfirmed,
+        doctorActivo: t.doctor.isActive,
+      };
+    });
+
+  const turnos = filtros.error
+    ? []
+    : filtrarYOrdenarTurnosDisponibles(candidatos, filtros, ahora);
+  const gruposPorDia = agruparTurnosPorDia(turnos);
+  const duracionMs = Math.round(performance.now() - inicioMs);
+
+  return {
+    filtros,
+    rangoDefecto,
+    profesionales,
+    turnos,
+    gruposPorDia,
+    duracionMs,
+    mensajeVacio: !filtros.error && turnos.length === 0 ? MENSAJE_SIN_RESULTADOS : null,
+  };
 }

@@ -41,12 +41,28 @@ export default async function DashboardPage() {
           </Link>
           .
         </p>
+        {role === "USUARIO" && (
+          <Link
+            href="/dashboard/turnos"
+            className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+          >
+            Buscar turnos disponibles
+          </Link>
+        )}
         {role === "MEDICO" && (
           <Link
             href="/dashboard/disponibilidad"
             className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
           >
             Cargar disponibilidad mensual
+          </Link>
+        )}
+        {role === "ADMINISTRATIVO" && (
+          <Link
+            href="/dashboard/estado-turnos"
+            className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+          >
+            Registrar estado de turnos
           </Link>
         )}
         {role === "ADMINISTRADOR" && (
