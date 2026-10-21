@@ -27,7 +27,7 @@ La API de Gmail **no expone "envío programado"** por API (solo lo tiene la UI w
    CRON_SECRET="secreto-seguro"  # opcional para Vercel Cron
    ```
 2. **Scheduler que ejecute el proceso**. Dos opciones disponibles:
-   - **Vercel Cron**: `vercel.json` define `/api/notifications/reminders` cada hora (`"0 * * * *"`). Acepta `Authorization: Bearer <CRON_SECRET>` automáticamente.
+   - **Vercel Cron**: `vercel.json` define `/api/notifications/reminders` una vez por día (`"0 12 * * *"`, 09:00 en Argentina), compatible con el plan **Hobby/gratuito** de Vercel. Acepta `Authorization: Bearer <CRON_SECRET>` automáticamente.
    - **Cron del sistema**: `scripts/send-reminders.ts`. Ejemplo de `crontab`:
      ```cron
      0 * * * * cd /ruta/aurahealth-proyecto-pss && npx tsx scripts/send-reminders.ts >> /var/log/aurahealth-reminders.log 2>&1
