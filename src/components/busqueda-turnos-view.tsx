@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { sumarDias } from "@/lib/agenda-profesional";
 import {
   ESPECIALIDADES_BUSQUEDA,
-  formatearDiaLargo,
   MENSAJE_SIN_RESULTADOS,
   type FiltrosBusquedaNormalizados,
   type GrupoDiaTurnos,
@@ -39,7 +39,6 @@ export function BusquedaTurnosView({
   const [doctorId, setDoctorId] = useState<string>(filtros.doctorId);
   const [desde, setDesde] = useState<string>(filtros.desde);
   const [hasta, setHasta] = useState<string>(filtros.hasta);
-  const [turnoSeleccionado, setTurnoSeleccionado] = useState<TurnoDisponiblePaciente | null>(null);
 
   const ejecutarBusqueda = (params: {
     specialty: string;
@@ -65,7 +64,6 @@ export function BusquedaTurnosView({
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setTurnoSeleccionado(null);
     ejecutarBusqueda({ specialty, doctorId, desde, hasta });
   };
 
@@ -74,7 +72,6 @@ export function BusquedaTurnosView({
     setDoctorId("");
     setDesde(rangoDefecto.desde);
     setHasta(rangoDefecto.hasta);
-    setTurnoSeleccionado(null);
     startTransition(() => {
       router.push("/dashboard/turnos", { scroll: false });
     });
@@ -83,7 +80,6 @@ export function BusquedaTurnosView({
   const handleAmpliarRango = () => {
     const nuevoHasta = sumarDias(hasta, 30);
     setHasta(nuevoHasta);
-    setTurnoSeleccionado(null);
     ejecutarBusqueda({ specialty, doctorId, desde, hasta: nuevoHasta });
   };
 
@@ -206,44 +202,6 @@ export function BusquedaTurnosView({
         </section>
       )}
 
-      {/* RESUMEN DEL TURNO SELECCIONADO (CONEXIÓN CON US-13) */}
-      {turnoSeleccionado && (
-        <section
-          aria-live="polite"
-          className="mt-6 rounded-xl border-2 border-primary bg-surface p-4 shadow-sm sm:p-6"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-bold text-primary-dark">
-              Turno seleccionado para reservar
-            </h2>
-            <button
-              type="button"
-              onClick={() => setTurnoSeleccionado(null)}
-              className="text-xs font-semibold text-ink-secondary underline hover:text-ink"
-            >
-              Cerrar resumen
-            </button>
-          </div>
-          <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-lg border border-line bg-background p-3">
-              <dt className="text-xs font-medium text-ink-secondary">Profesional</dt>
-              <dd className="mt-0.5 font-semibold text-ink">{turnoSeleccionado.doctorName}</dd>
-            </div>
-            <div className="rounded-lg border border-line bg-background p-3">
-              <dt className="text-xs font-medium text-ink-secondary">Especialidad</dt>
-              <dd className="mt-0.5 font-semibold text-ink">{turnoSeleccionado.specialtyLabel}</dd>
-            </div>
-            <div className="rounded-lg border border-line bg-background p-3">
-              <dt className="text-xs font-medium text-ink-secondary">Fecha y horario</dt>
-              <dd className="mt-0.5 font-semibold text-ink">
-                {formatearDiaLargo(turnoSeleccionado.date)} · {turnoSeleccionado.startTime} –{" "}
-                {turnoSeleccionado.endTime}
-              </dd>
-            </div>
-          </dl>
-        </section>
-      )}
-
       {/* BLOQUE 2: RESULTADOS AGRUPADOS POR DÍA Y ORDENADOS CRONOLÓGICAMENTE */}
       {!filtros.error && turnos.length > 0 && (
         <section
@@ -296,13 +254,13 @@ export function BusquedaTurnosView({
                           <td className="px-4 py-3 text-ink">{turno.doctorName}</td>
                           <td className="px-4 py-3 text-ink-secondary">{turno.specialtyLabel}</td>
                           <td className="px-4 py-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => setTurnoSeleccionado(turno)}
+                            {/* US-13: abre la confirmación de la reserva. */}
+                            <Link
+                              href={`/dashboard/reservar?turno=${turno.id}`}
                               className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-dark"
                             >
                               Reservar
-                            </button>
+                            </Link>
                           </td>
                         </tr>
                       ))}
@@ -326,13 +284,12 @@ export function BusquedaTurnosView({
                         <p className="font-semibold">{turno.doctorName}</p>
                         <p className="text-ink-secondary">{turno.specialtyLabel}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setTurnoSeleccionado(turno)}
+                      <Link
+                        href={`/dashboard/reservar?turno=${turno.id}`}
                         className="mt-1 inline-flex w-full cursor-pointer items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark"
                       >
                         Reservar
-                      </button>
+                      </Link>
                     </li>
                   ))}
                 </ul>

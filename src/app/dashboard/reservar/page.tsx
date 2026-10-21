@@ -1,74 +1,87 @@
 import { DashboardShell } from "@/components/dashboard-shell";
-import { ReservaMock, type TurnoReservable } from "@/components/reserva-mock";
+import { ReservaTurnoView, type TurnoAReservar } from "@/components/reserva-turno-view";
 import { requireRoles } from "@/lib/auth-session";
 import { db } from "@/lib/db";
-import { todayInArgentina } from "@/lib/availability-rn02";
+import { ahoraEnArgentina, esTurnoFuturo } from "@/lib/busqueda-turnos";
+import { getSalaDireccion } from "@/lib/configuracion";
 import { SPECIALTY_LABELS } from "@/lib/roles";
 
+type PageProps = {
+  searchParams: Promise<{ turno?: string }>;
+};
+
 export const metadata = {
-  title: "Reservar turno",
-  description: "Turnos disponibles para reservar en AuraHealth.",
+  title: "Confirmar reserva | AuraHealth",
+  description: "Selección y confirmación de un turno disponible.",
 };
 
 export const dynamic = "force-dynamic";
 
 /**
- * ⚠️ MOCK TEMPORAL — US-13 (Reserva de turno).
- *
- * Esta ruta es un prototipo para probar el email de confirmación de US-14 y el
- * servicio de envío de US-21. No es la implementación definitiva de US-13: la
- * reemplazan la reserva real y la búsqueda de disponibilidad de US-12.
- *
- * Al completar US-13, reemplazar `ReservaMock` por la pantalla real y eliminar
- * el banner de mock (`MockUs13Banner`).
+ * US-13: confirmación de la reserva del turno elegido en la búsqueda (US-10),
+ * con la opción de reservarlo a nombre de otra persona (US-64).
  */
-export default async function ReservarPage() {
+export default async function ReservarPage({ searchParams }: PageProps) {
   const { role, profile } = await requireRoles(["USUARIO"]);
+  const { turno: turnoId } = await searchParams;
 
-  const hoy = todayInArgentina();
-  const turnos = await db.turno.findMany({
-    where: {
-      status: "DISPONIBLE",
-      date: { gte: new Date(`${hoy}T00:00:00.000Z`) },
-    },
-    include: { doctor: true },
-    orderBy: [{ date: "asc" }, { startTime: "asc" }],
-    take: 300,
-  });
+  const [turno, personas, salaDireccion] = await Promise.all([
+    turnoId
+      ? db.turno.findUnique({ where: { id: turnoId }, include: { doctor: true } })
+      : Promise.resolve(null),
+    db.personaAtendida.findMany({
+      where: { userId: profile.id },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        docNumber: true,
+        healthInsuranceEntity: true,
+        healthInsurancePlan: true,
+      },
+    }),
+    getSalaDireccion(),
+  ]);
 
-  const reservables: TurnoReservable[] = turnos.map((turno) => ({
-    id: turno.id,
-    doctorNombre: `Dr. ${turno.doctor.firstName} ${turno.doctor.lastName}`,
-    especialidad: turno.doctor.specialty
-      ? SPECIALTY_LABELS[turno.doctor.specialty]
-      : "Consulta médica",
-    fecha: turno.date.toISOString().slice(0, 10),
-    startTime: turno.startTime,
-    endTime: turno.endTime,
-  }));
+  const fecha = turno ? turno.date.toISOString().slice(0, 10) : "";
+  const disponible =
+    turno !== null &&
+    turno.status === "DISPONIBLE" &&
+    turno.doctor.isActive &&
+    esTurnoFuturo({ date: fecha, startTime: turno.startTime }, ahoraEnArgentina());
+
+  const turnoAReservar: TurnoAReservar | null =
+    turno && disponible
+      ? {
+          id: turno.id,
+          doctorNombre: `Dr. ${turno.doctor.firstName} ${turno.doctor.lastName}`,
+          especialidad: turno.doctor.specialty
+            ? SPECIALTY_LABELS[turno.doctor.specialty]
+            : "Consulta médica",
+          fecha,
+          startTime: turno.startTime,
+          endTime: turno.endTime,
+          sala: salaDireccion,
+        }
+      : null;
 
   return (
     <DashboardShell
       userName={`${profile.firstName} ${profile.lastName}`}
       role={role}
-      activeNav="reservar"
+      activeNav="turnos"
     >
-      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold text-ink sm:text-3xl">Reservar turno</h1>
-          <span className="rounded-full bg-warning px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-ink">
-            Mock · US-13
-          </span>
-        </div>
-        <p className="mt-1 text-sm text-ink-secondary">
-          Versión de prueba de la reserva: sirve para validar el envío de la confirmación por
-          email. No es la implementación definitiva de US-13.
-        </p>
-
-        <div className="mt-6">
-          <ReservaMock turnos={reservables} />
-        </div>
-      </div>
+      <ReservaTurnoView
+        key={turnoId ?? "sin-turno"}
+        turno={turnoAReservar}
+        personas={personas.map((p) => ({
+          id: p.id,
+          nombre: `${p.firstName} ${p.lastName}`,
+          documento: p.docNumber,
+          obraSocial: `${p.healthInsuranceEntity} ${p.healthInsurancePlan}`,
+        }))}
+      />
     </DashboardShell>
   );
 }

@@ -4,6 +4,7 @@ import {
   type LimitesJornadas,
 } from "@/lib/availability-rn02";
 import { ANTELACION_RECORDATORIO_DEFAULT_HORAS } from "@/lib/recordatorios";
+import { ANTELACION_CANCELACION_DEFAULT_HORAS } from "@/lib/reservas";
 
 /**
  * Límites de jornadas semanales vigentes (US-06 / RN-02). Mientras el
@@ -40,4 +41,19 @@ export async function getRecordatorioAntelacion(): Promise<number> {
   return typeof horas === "number" && Number.isInteger(horas) && horas > 0
     ? horas
     : ANTELACION_RECORDATORIO_DEFAULT_HORAS;
+}
+
+/**
+ * US-16: antelación mínima para que el paciente cancele un turno, en horas.
+ * Mientras el administrador no la cambie rige el valor inicial de 24 horas.
+ */
+export async function getCancelacionAntelacion(): Promise<number> {
+  const config = await db.configuracion.findUnique({
+    where: { id: 1 },
+    select: { cancelacionAntelacionHoras: true },
+  });
+  const horas = config?.cancelacionAntelacionHoras;
+  return typeof horas === "number" && Number.isInteger(horas) && horas > 0
+    ? horas
+    : ANTELACION_CANCELACION_DEFAULT_HORAS;
 }

@@ -57,6 +57,8 @@ model User {
   turnos                Turno[]                 @relation("DoctorTurnos")
   turnosReservados      Turno[]                 @relation("ReservedTurnos")
   cambiosEstadoTurno    TurnoEstadoAuditLog[]   @relation("TurnoEstadoCambiadoPor")
+  personasAtendidas     PersonaAtendida[]
+  turnosCancelados      TurnoCancelacion[]
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -119,11 +121,14 @@ model Turno {
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
 
-  // Datos de reserva del paciente (US-13 / US-18). Nulos mientras está DISPONIBLE.
-  // MOCK US-13 (provisional, consumido por US-14): reemplazar por el modelo
-  // definitivo cuando el equipo implemente US-13 completa.
+  // US-13: datos de la reserva. Nulos mientras está DISPONIBLE.
   reservedById     String?
   reservedBy       User?     @relation("ReservedTurnos", fields: [reservedById], references: [id], onDelete: SetNull)
+  // US-64: persona atendida cuando el turno es a nombre de otra persona. El
+  // nombre se copia en patientFirstName/patientLastName para que lo lean
+  // US-14, US-18 y la agenda sin otra consulta.
+  personaAtendidaId String?
+  personaAtendida   PersonaAtendida? @relation(fields: [personaAtendidaId], references: [id], onDelete: SetNull)
   patientFirstName String?
   patientLastName  String?
   motivoConsulta   String?
@@ -139,12 +144,53 @@ model Turno {
 
   // US-18 (RF-TUR-07): historial auditable de cambios de estado del turno.
   estadoAuditLogs  TurnoEstadoAuditLog[]
+  cancelaciones    TurnoCancelacion[]
 
   @@unique([doctorId, date, startTime])
   @@index([doctorId, date])
   @@index([status, date])
   @@index([reservedById])
   @@index([recordatorioEstado, date])
+}
+
+/// US-64: persona a cuyo nombre un usuario reservó un turno, con su cobertura.
+/// Queda guardada para elegirla en reservas posteriores sin reingresar sus datos.
+model PersonaAtendida {
+  id                    String   @id @default(cuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName             String
+  lastName              String
+  docNumber             String
+  birthDate             DateTime @db.Date
+  healthInsuranceEntity String
+  healthInsurancePlan   String
+  healthInsuranceNumber String
+  turnos                Turno[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([userId, docNumber])
+}
+
+/// US-16: constancia de un turno cancelado por el paciente. El turno vuelve a
+/// DISPONIBLE para que otro lo reserve; la cancelación queda en este historial
+/// (no se elimina) con los datos de la reserva tal como estaban.
+model TurnoCancelacion {
+  id               String   @id @default(cuid())
+  turnoId          String?
+  turno            Turno?   @relation(fields: [turnoId], references: [id], onDelete: SetNull)
+  reservedById     String
+  reservedBy       User     @relation(fields: [reservedById], references: [id], onDelete: Cascade)
+  doctorNombre     String
+  date             DateTime @db.Date
+  startTime        String
+  endTime          String
+  patientFirstName String?
+  patientLastName  String?
+  cancelledAt      DateTime @default(now())
+
+  @@index([reservedById])
 }
 
 /// US-18 (RF-TUR-07): Constancia auditable de quién cambió el estado de un turno y cuándo.
@@ -175,6 +221,8 @@ model Configuracion {
   salaDireccion     String?
   // US-15: antelación del recordatorio de turno, en horas (inicial 24).
   recordatorioAntelacionHoras Int @default(24)
+  // US-16: antelación mínima para que el paciente cancele un turno, en horas (inicial 24).
+  cancelacionAntelacionHoras  Int @default(24)
   updatedAt         DateTime @updatedAt
 }
 
