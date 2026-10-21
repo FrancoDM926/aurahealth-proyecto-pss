@@ -7,12 +7,14 @@ import { assertRoles } from "@/lib/auth-session";
 import {
   esHorarioDeGrilla,
   isPastDate,
+  isPastTime,
   SLOT_DURATION_MINUTES,
   todayInArgentina,
   validateMonthlyJornadasRN02,
   type JornadaInput,
 } from "@/lib/availability-rn02";
 import { getLimitesJornadas } from "@/lib/configuracion";
+import { splitFranjaIntoSlots } from "@/lib/turno-generator";
 
 export type ActionResult = {
   success: boolean;
@@ -87,15 +89,18 @@ function validateJornadaDates(
       errors[j.date] = "La fecha no pertenece al mes seleccionado.";
       continue;
     }
+    const saved = persisted.get(j.date);
+    const unchanged =
+      saved &&
+      saved.startTime === normalizeTime(j.startTime) &&
+      saved.endTime === normalizeTime(j.endTime);
     if (isPastDate(j.date, today)) {
-      const saved = persisted.get(j.date);
-      const unchanged =
-        saved &&
-        saved.startTime === normalizeTime(j.startTime) &&
-        saved.endTime === normalizeTime(j.endTime);
       if (!unchanged) {
         errors[j.date] = `El ${formatDateAr(j.date)} ya pasó: no se pueden cargar franjas en fechas pasadas.`;
       }
+    } else if (!unchanged && isPastTime(j.date, normalizeTime(j.startTime))) {
+      // Hoy tampoco se puede cargar una franja que arranca en un horario que ya pasó.
+      errors[j.date] = `El horario de inicio del ${formatDateAr(j.date)} ya pasó: elegí un horario posterior a la hora actual.`;
     }
   }
   return errors;
@@ -211,25 +216,76 @@ export async function saveMonthlyAvailability(
       endTime: normalizeTime(j.endTime),
     }));
 
-    await db.monthlyAvailability.upsert({
+    // Los turnos ya generados siguen a la disponibilidad: si se quitó o se acortó una
+    // franja, los turnos que quedaron afuera se eliminan. Si alguno ya tiene una
+    // reserva o un estado registrado, no se puede quitar y se avisa.
+    const turnosMes = await db.turno.findMany({
       where: {
-        userId_year_month: { userId: user.id, year, month },
-      },
-      create: {
-        userId: user.id,
-        year,
-        month,
-        jornadas: { create: jornadaRows },
-      },
-      update: {
-        jornadas: {
-          deleteMany: {},
-          create: jornadaRows,
+        doctorId: user.id,
+        date: {
+          gte: new Date(Date.UTC(year, month - 1, 1)),
+          lte: new Date(Date.UTC(year, month, 0)),
         },
       },
+      select: { id: true, date: true, startTime: true, status: true },
+    });
+    const turnoKey = (date: Date, startTime: string) =>
+      `${date.toISOString().slice(0, 10)}_${startTime}`;
+    const slotsVigentes = new Set<string>();
+    for (const row of jornadaRows) {
+      for (const slot of splitFranjaIntoSlots(row.startTime, row.endTime)) {
+        slotsVigentes.add(turnoKey(row.date, slot.startTime));
+      }
+    }
+    const obsoletos = turnosMes.filter((t) => !slotsVigentes.has(turnoKey(t.date, t.startTime)));
+    const conservados = obsoletos.filter((t) => t.status !== "DISPONIBLE");
+    if (conservados.length > 0) {
+      const dias = [...new Set(conservados.map((t) => formatDateAr(t.date.toISOString().slice(0, 10))))];
+      return {
+        success: false,
+        message: `No se puede modificar la disponibilidad: hay turnos reservados o con estado registrado fuera de las nuevas franjas (${dias.join(", ")}).`,
+      };
+    }
+
+    await db.$transaction(async (tx) => {
+      const availability = await tx.monthlyAvailability.upsert({
+        where: {
+          userId_year_month: { userId: user.id, year, month },
+        },
+        create: {
+          userId: user.id,
+          year,
+          month,
+          jornadas: { create: jornadaRows },
+        },
+        update: {
+          jornadas: {
+            deleteMany: {},
+            create: jornadaRows,
+          },
+        },
+        include: { jornadas: { select: { id: true, date: true } } },
+      });
+
+      if (obsoletos.length > 0) {
+        await tx.turno.deleteMany({
+          where: { id: { in: obsoletos.map((t) => t.id) }, status: "DISPONIBLE" },
+        });
+      }
+
+      // Al recrearse las jornadas, los turnos que se conservan quedaron sin vínculo.
+      for (const jornada of availability.jornadas) {
+        await tx.turno.updateMany({
+          where: { doctorId: user.id, date: jornada.date },
+          data: { jornadaId: jornada.id },
+        });
+      }
     });
 
     revalidatePath("/dashboard/disponibilidad");
+    revalidatePath("/dashboard/agenda");
+    revalidatePath("/dashboard/agenda-generada");
+    revalidatePath("/dashboard/turnos");
     return {
       success: true,
       message: "Disponibilidad guardada correctamente.",

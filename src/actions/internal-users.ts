@@ -312,10 +312,14 @@ export async function createInternalUser(
     where: { email },
   });
   if (existing) {
+    // Un usuario dado de baja conserva su registro: se lo vuelve a dar de alta, no se crea otro.
+    const message = existing.isActive
+      ? "Ya existe un usuario con este correo."
+      : "Ya existe un usuario con este correo, dado de baja. Usá «Dar de alta» en el listado para reactivarlo.";
     return {
       success: false,
-      message: "Ya existe un usuario con este correo.",
-      errors: { email: "Este correo ya está registrado." },
+      message,
+      errors: { email: message },
     };
   }
 

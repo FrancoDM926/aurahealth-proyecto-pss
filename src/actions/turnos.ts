@@ -25,7 +25,7 @@ import {
 } from "@/lib/busqueda-turnos";
 import { SPECIALTY_LABELS } from "@/lib/roles";
 import { assertRoles } from "@/lib/auth-session";
-import { validateMonthlyJornadasRN02 } from "@/lib/availability-rn02";
+import { isPastTime, validateMonthlyJornadasRN02 } from "@/lib/availability-rn02";
 import { getLimitesJornadas } from "@/lib/configuracion";
 import type { User } from "@/generated/prisma/client";
 
@@ -194,7 +194,11 @@ export async function generateTurnosAction(input: {
       );
     }
 
-    const { turnos } = generateTurnosFromFranjasList(franjas);
+    // No se generan turnos en horarios que ya pasaron (hoy, o fechas anteriores).
+    const ahora = new Date();
+    const turnos = generateTurnosFromFranjasList(franjas).turnos.filter(
+      (t) => !isPastTime(formatUtcDateString(t.date), t.startTime, ahora)
+    );
 
     // Criterio 5: idempotencia. Se omiten los turnos que ya existen.
     const existingTurnosInDb = await db.turno.findMany({
