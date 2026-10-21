@@ -252,3 +252,60 @@ export function filterTurnosForIdempotency(
 
   return { toCreate, existingCount };
 }
+
+export type TurnoExistente = {
+  id: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  status: string;
+};
+
+export type CambiosTurnos = {
+  /** Turnos de la disponibilidad vigente que todavía no existen. */
+  aCrear: GeneratedTurno[];
+  /** Turnos disponibles que quedaron fuera de la disponibilidad: se quitan al confirmar. */
+  aQuitar: TurnoExistente[];
+  /** Fuera de la disponibilidad pero ya reservados o con estado: no se pueden quitar. */
+  conservadosPorReserva: TurnoExistente[];
+  /** Turnos que ya existían y siguen vigentes. */
+  preservados: number;
+};
+
+function claveTurno(date: Date, startTime: string): string {
+  return `${date.toISOString().split("T")[0]}_${startTime}`;
+}
+
+/**
+ * Compara los turnos que salen de la disponibilidad vigente contra los ya
+ * generados del mes. Es lo que el médico revisa y confirma en «Agenda generada»:
+ * qué se crea, qué se quita y qué se conserva. Los horarios que ya pasaron no se
+ * crean ni se tocan.
+ */
+export function calcularCambiosTurnos(
+  vigentes: GeneratedTurno[],
+  existentes: TurnoExistente[],
+  yaPaso: (date: string, startTime: string) => boolean
+): CambiosTurnos {
+  const clavesVigentes = new Set(vigentes.map((t) => claveTurno(t.date, t.startTime)));
+  const clavesExistentes = new Set(existentes.map((t) => claveTurno(t.date, t.startTime)));
+
+  const aCrear = vigentes.filter(
+    (t) =>
+      !clavesExistentes.has(claveTurno(t.date, t.startTime)) &&
+      !yaPaso(t.date.toISOString().split("T")[0], t.startTime)
+  );
+
+  const fuera = existentes.filter(
+    (t) =>
+      !clavesVigentes.has(claveTurno(t.date, t.startTime)) &&
+      !yaPaso(t.date.toISOString().split("T")[0], t.startTime)
+  );
+
+  return {
+    aCrear,
+    aQuitar: fuera.filter((t) => t.status === "DISPONIBLE"),
+    conservadosPorReserva: fuera.filter((t) => t.status !== "DISPONIBLE"),
+    preservados: existentes.filter((t) => clavesVigentes.has(claveTurno(t.date, t.startTime))).length,
+  };
+}

@@ -236,3 +236,30 @@ export function opcionesHoraFin(inicio: string): string[] {
   }
   return out;
 }
+
+/** Hora actual ("HH:mm") en la hora de la sala, no la del servidor. */
+export function horaActualArgentina(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const hour = (parts.find((p) => p.type === "hour")?.value ?? "00").replace("24", "00");
+  const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
+  return `${hour}:${minute}`;
+}
+
+/**
+ * Un horario ya pasó si es de un día anterior a hoy o, siendo hoy, empieza a
+ * la hora actual o antes. No se cargan franjas ni se generan turnos sobre él.
+ */
+export function isPastTime(
+  date: string,
+  time: string,
+  now: Date = new Date()
+): boolean {
+  const today = todayInArgentina(now);
+  if (date !== today) return date < today;
+  return time <= horaActualArgentina(now);
+}

@@ -154,3 +154,20 @@ model Configuracion {
   maxJornadasSemana Int      @default(7)
   updatedAt         DateTime @updatedAt
 }
+
+/// US-24 (RF-VAC-01, RN-05): catálogo de vacunas, única fuente de datos de vacunas del
+/// sistema. No administra existencias: toda vacuna activa se asume con stock.
+/// La unicidad "no hay dos vacunas ACTIVAS con la misma denominación y laboratorio"
+/// la garantiza un índice único parcial creado en la migración
+/// (Vacuna_denominacion_laboratorio_activa_key); Prisma no puede declararlo acá.
+model Vacuna {
+  id           String   @id @default(cuid())
+  denominacion String
+  laboratorio  String
+  esquemaDosis String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive, denominacion])
+}
