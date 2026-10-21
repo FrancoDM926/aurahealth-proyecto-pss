@@ -3,9 +3,10 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import {
+  formatDisplayDate,
   FranjaInput,
   generateTurnosFromFranjasList,
-  filterTurnosForIdempotency,
+  calcularCambiosTurnos,
   FranjaPreview,
   GenerationSummary,
 } from "@/lib/turno-generator";
@@ -46,6 +47,20 @@ export type AgendaPreviewData = {
   hasAvailability: boolean;
   alreadyGenerated: boolean;
   existingTurnosCount: number;
+  /** Lo que cambia al confirmar: turnos nuevos, turnos a quitar y turnos que no se pueden quitar. */
+  cambios: {
+    aCrear: number;
+    preservados: number;
+    aQuitar: TurnoFueraDeAgenda[];
+    conservadosPorReserva: TurnoFueraDeAgenda[];
+  };
+};
+
+export type TurnoFueraDeAgenda = {
+  date: string;
+  displayDate: string;
+  startTime: string;
+  endTime: string;
 };
 
 export type GenerateTurnosResult = {
@@ -53,6 +68,7 @@ export type GenerateTurnosResult = {
   message: string;
   createdCount: number;
   existingCount: number;
+  removedCount: number;
   totalSlots: number;
 };
 
@@ -98,6 +114,30 @@ async function loadFranjas(doctor: User, year: number, month: number) {
   return { doctorName, specialty, franjas };
 }
 
+/** Turnos ya generados del médico en el mes, con su estado. */
+async function loadTurnosDelMes(doctorId: string, year: number, month: number) {
+  return db.turno.findMany({
+    where: {
+      doctorId,
+      date: {
+        gte: new Date(Date.UTC(year, month - 1, 1)),
+        lte: new Date(Date.UTC(year, month, 0)),
+      },
+    },
+    select: { id: true, date: true, startTime: true, endTime: true, status: true },
+    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+  });
+}
+
+function aTurnoFueraDeAgenda(t: { date: Date; startTime: string; endTime: string }): TurnoFueraDeAgenda {
+  return {
+    date: formatUtcDateString(t.date),
+    displayDate: formatDisplayDate(t.date),
+    startTime: t.startTime,
+    endTime: t.endTime,
+  };
+}
+
 /**
  * Vista previa de la agenda a generar (US-08) a partir de la disponibilidad
  * mensual del médico autenticado.
@@ -124,15 +164,14 @@ export async function getAgendaGeneradaPreview(params: {
     limites
   );
 
-  const existingTurnosCount = await db.turno.count({
-    where: {
-      doctorId: profile.id,
-      date: {
-        gte: new Date(Date.UTC(year, month - 1, 1)),
-        lte: new Date(Date.UTC(year, month, 0)),
-      },
-    },
-  });
+  const existentes = await loadTurnosDelMes(profile.id, year, month);
+  const existingTurnosCount = existentes.length;
+  const ahora = new Date();
+  const cambios = calcularCambiosTurnos(
+    generateTurnosFromFranjasList(franjas).turnos,
+    existentes,
+    (date, startTime) => isPastTime(date, startTime, ahora)
+  );
 
   return {
     doctorName,
@@ -150,6 +189,12 @@ export async function getAgendaGeneradaPreview(params: {
     hasAvailability: franjas.length > 0,
     alreadyGenerated: existingTurnosCount > 0,
     existingTurnosCount,
+    cambios: {
+      aCrear: cambios.aCrear.length,
+      preservados: cambios.preservados,
+      aQuitar: cambios.aQuitar.map(aTurnoFueraDeAgenda),
+      conservadosPorReserva: cambios.conservadosPorReserva.map(aTurnoFueraDeAgenda),
+    },
   };
 }
 
@@ -171,6 +216,7 @@ export async function generateTurnosAction(input: {
     message,
     createdCount: 0,
     existingCount: 0,
+    removedCount: 0,
     totalSlots: 0,
   });
 
@@ -194,50 +240,49 @@ export async function generateTurnosAction(input: {
       );
     }
 
-    // No se generan turnos en horarios que ya pasaron (hoy, o fechas anteriores).
+    // Se compara la disponibilidad vigente contra los turnos ya generados: se crean
+    // los nuevos y se quitan los disponibles que el médico sacó de su disponibilidad.
+    // Los horarios que ya pasaron no se crean ni se tocan; los turnos reservados o con
+    // estado registrado nunca se quitan. Reconfirmar sin cambios no duplica nada.
     const ahora = new Date();
-    const turnos = generateTurnosFromFranjasList(franjas).turnos.filter(
-      (t) => !isPastTime(formatUtcDateString(t.date), t.startTime, ahora)
+    const { turnos } = generateTurnosFromFranjasList(franjas);
+    const existentes = await loadTurnosDelMes(doctor.id, year, month);
+    const { aCrear, aQuitar, preservados } = calcularCambiosTurnos(
+      turnos,
+      existentes,
+      (date, startTime) => isPastTime(date, startTime, ahora)
     );
-
-    // Criterio 5: idempotencia. Se omiten los turnos que ya existen.
-    const existingTurnosInDb = await db.turno.findMany({
-      where: {
-        doctorId: doctor.id,
-        date: { in: [...new Set(turnos.map((t) => t.date.getTime()))].map((ms) => new Date(ms)) },
-      },
-      select: { doctorId: true, date: true, startTime: true },
-    });
-
-    const existingKeys = new Set<string>(
-      existingTurnosInDb.map(
-        (t) => `${t.doctorId}_${formatUtcDateString(t.date)}_${t.startTime}`
-      )
-    );
-
-    const { toCreate, existingCount } = filterTurnosForIdempotency(turnos, existingKeys);
 
     let createdCount = 0;
-    if (toCreate.length > 0) {
-      const createResult = await db.turno.createMany({
-        data: toCreate.map((t) => ({
-          doctorId: t.doctorId,
-          jornadaId: t.franjaId,
-          date: t.date,
-          startTime: t.startTime,
-          endTime: t.endTime,
-          duration: t.duration,
-          status: "DISPONIBLE" as const,
-        })),
-        skipDuplicates: true,
+    let removedCount = 0;
+    await db.$transaction(async (tx) => {
+      if (aQuitar.length > 0) {
+        const removed = await tx.turno.deleteMany({
+          where: { id: { in: aQuitar.map((t) => t.id) }, status: "DISPONIBLE" },
+        });
+        removedCount = removed.count;
+      }
+      if (aCrear.length > 0) {
+        const created = await tx.turno.createMany({
+          data: aCrear.map((t) => ({
+            doctorId: t.doctorId,
+            jornadaId: t.franjaId,
+            date: t.date,
+            startTime: t.startTime,
+            endTime: t.endTime,
+            duration: t.duration,
+            status: "DISPONIBLE" as const,
+          })),
+          skipDuplicates: true,
+        });
+        createdCount = created.count;
+      }
+      await tx.monthlyAvailability.update({
+        where: { userId_year_month: { userId: doctor.id, year, month } },
+        data: { isConfirmed: true, confirmedAt: new Date() },
       });
-      createdCount = createResult.count;
-    }
-
-    await db.monthlyAvailability.update({
-      where: { userId_year_month: { userId: doctor.id, year, month } },
-      data: { isConfirmed: true, confirmedAt: new Date() },
     });
+    const existingCount = preservados;
 
     revalidatePath("/dashboard/agenda-generada");
     revalidatePath("/dashboard/disponibilidad");
@@ -246,12 +291,14 @@ export async function generateTurnosAction(input: {
 
     return {
       success: true,
-      message:
-        existingCount > 0
-          ? `Se procesaron ${turnos.length} turnos: ${createdCount} nuevos creados y ${existingCount} existentes preservados (idempotente).`
-          : `Se generaron exitosamente ${createdCount} turnos de 30 minutos en estado disponible.`,
+      message: [
+        `${createdCount} turnos nuevos creados`,
+        `${removedCount} quitados`,
+        `${existingCount} ya existentes conservados`,
+      ].join(", ") + ".",
       createdCount,
       existingCount,
+      removedCount,
       totalSlots: turnos.length,
     };
   } catch (error) {
