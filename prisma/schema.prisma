@@ -118,7 +118,8 @@ model Turno {
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
 
-  // Reserva (US-13 mínimo, consumido por US-14). Nulos mientras está DISPONIBLE.
+  // MOCK US-13 (provisional, consumido por US-14). Nulos mientras está DISPONIBLE.
+  // Reemplazar por el modelo definitivo cuando el equipo implemente US-13 completa.
   reservedById     String?
   reservedBy       User?     @relation("ReservedTurnos", fields: [reservedById], references: [id], onDelete: SetNull)
   patientFirstName String?

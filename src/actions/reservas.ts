@@ -8,11 +8,19 @@ import { todayInArgentina } from "@/lib/availability-rn02";
 import { enviarConfirmacionTurnoMedico } from "@/services/notificaciones/turno-confirmacion";
 
 /**
- * US-13 (mínimo) — reserva de un turno disponible.
+ * ⚠️ MOCK TEMPORAL — US-13 (Reserva de turno).
+ *
+ * Esta acción NO es la implementación definitiva de US-13. Es un prototipo
+ * mínimo que reserva un turno existente para poder probar la confirmación por
+ * email de US-14 y el servicio de envío de US-21.
  *
  * US-14 se engancha acá: apenas el turno queda reservado se dispara la
  * confirmación por email de forma no bloqueante (`after`). Si el correo falla,
  * la reserva sigue válida y el fallo queda registrado por el servicio de US-21.
+ *
+ * Cuando el equipo implemente US-13 completa, reemplazar esta acción por la
+ * versión real (con la búsqueda de disponibilidad de US-12 y las reglas de
+ * negocio definitivas).
  */
 
 export type ReservaResult = {
@@ -45,7 +53,7 @@ export type ReservarTurnoInput = {
 };
 
 /**
- * US-13 (mínimo): reserva el turno indicado para el usuario autenticado.
+ * MOCK US-13: reserva el turno indicado para el usuario autenticado.
  * Solo puede reservarlo un paciente (`USUARIO`). La reserva es atómica: si otra
  * persona tomó el turno antes, esta operación no lo pisa.
  */
@@ -113,8 +121,8 @@ export async function reservarTurnoAction(
   return {
     success: true,
     message: paraOtraPersona
-      ? `Turno reservado a nombre de ${patientFirstName} ${patientLastName}. Te enviamos el detalle por email.`
-      : "Turno reservado. Te enviamos la confirmación por email.",
+      ? `Reserva mock registrada a nombre de ${patientFirstName} ${patientLastName}. Te enviamos el detalle por email.`
+      : "Reserva mock registrada. Te enviamos la confirmación por email.",
     turnoId,
   };
 }

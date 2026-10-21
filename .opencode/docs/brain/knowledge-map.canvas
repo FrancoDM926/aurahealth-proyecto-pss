@@ -21,7 +21,7 @@
     {
       "id": "verification",
       "type": "text",
-      "text": "Verification\nunknown",
+      "text": "Verification\nMission verification passed",
       "x": 840,
       "y": 0,
       "width": 360,
@@ -32,6 +32,15 @@
       "type": "text",
       "text": "mission_started\nMission loop started",
       "x": 0,
+      "y": 260,
+      "width": 360,
+      "height": 180
+    },
+    {
+      "id": "event-1",
+      "type": "text",
+      "text": "mission_completed\nMission verification passed",
+      "x": 420,
       "y": 260,
       "width": 360,
       "height": 180
@@ -54,6 +63,12 @@
       "id": "verification-event-0",
       "fromNode": "verification",
       "toNode": "event-0",
+      "label": "evidence"
+    },
+    {
+      "id": "verification-event-1",
+      "fromNode": "verification",
+      "toNode": "event-1",
       "label": "evidence"
     }
   ]

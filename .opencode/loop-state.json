@@ -1,9 +1,0 @@
-{
-  "active": true,
-  "iteration": 1,
-  "maxIterations": 1000000000,
-  "prompt": "Implementá la US-15. Si es posible, utilizar el envio programado de GMAIL.\n\n US-15 — Recordatorio automático de turno\nMust | 2 pts | 6,6 h | Sprint 2\nComo paciente, quiero recibir un recordatorio por email antes de mi turno, para no olvidarme de asistir.\nCRITERIOS DE ACEPTACIÓN\n• El sistema envía el recordatorio con la antelación configurada por el administrador; el valor inicial son 24\nhoras.\n• No se envía recordatorio de turnos cancelados.\n• Se envía un único recordatorio por turno, sin duplicados ante reintentos del proceso.\n• El proceso corre de forma automática y deja registro de cada envío.\nDepende de: US-13 (turno reservado) FC, US-21 (servicio de envío de email) FC\nTrazabilidad: RF-TUR-04, RF-NOT-01",
-  "objective": "Implementá la US-15. Si es posible, utilizar el envio programado de GMAIL.",
-  "sessionID": "ses_ebfe38e60ffejif2wVuTeB03ZF",
-  "startedAt": "2026-10-15T15:09:28.506Z"
-}
