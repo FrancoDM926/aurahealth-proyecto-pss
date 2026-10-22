@@ -7,6 +7,7 @@ import { assertRoles } from "@/lib/auth-session";
 import {
   esHorarioDeGrilla,
   isPastDate,
+  isPastTime,
   SLOT_DURATION_MINUTES,
   todayInArgentina,
   validateMonthlyJornadasRN02,
@@ -87,15 +88,18 @@ function validateJornadaDates(
       errors[j.date] = "La fecha no pertenece al mes seleccionado.";
       continue;
     }
+    const saved = persisted.get(j.date);
+    const unchanged =
+      saved &&
+      saved.startTime === normalizeTime(j.startTime) &&
+      saved.endTime === normalizeTime(j.endTime);
     if (isPastDate(j.date, today)) {
-      const saved = persisted.get(j.date);
-      const unchanged =
-        saved &&
-        saved.startTime === normalizeTime(j.startTime) &&
-        saved.endTime === normalizeTime(j.endTime);
       if (!unchanged) {
         errors[j.date] = `El ${formatDateAr(j.date)} ya pasó: no se pueden cargar franjas en fechas pasadas.`;
       }
+    } else if (!unchanged && isPastTime(j.date, normalizeTime(j.startTime))) {
+      // Hoy tampoco se puede cargar una franja que arranca en un horario que ya pasó.
+      errors[j.date] = `El horario de inicio del ${formatDateAr(j.date)} ya pasó: elegí un horario posterior a la hora actual.`;
     }
   }
   return errors;
@@ -211,25 +215,53 @@ export async function saveMonthlyAvailability(
       endTime: normalizeTime(j.endTime),
     }));
 
-    await db.monthlyAvailability.upsert({
-      where: {
-        userId_year_month: { userId: user.id, year, month },
-      },
-      create: {
-        userId: user.id,
-        year,
-        month,
-        jornadas: { create: jornadaRows },
-      },
-      update: {
-        jornadas: {
-          deleteMany: {},
-          create: jornadaRows,
+    // Guardar solo persiste la disponibilidad. Los turnos se crean, se quitan o se
+    // conservan al confirmar la generación en «Agenda generada» (US-08), donde el
+    // médico ve qué cambia antes de confirmarlo.
+    const cambioDisponibilidad =
+      !existing ||
+      persisted.size !== jornadaRows.length ||
+      jornadaRows.some((row) => {
+        const saved = persisted.get(row.date.toISOString().slice(0, 10));
+        return !saved || saved.startTime !== row.startTime || saved.endTime !== row.endTime;
+      });
+
+    await db.$transaction(async (tx) => {
+      const availability = await tx.monthlyAvailability.upsert({
+        where: {
+          userId_year_month: { userId: user.id, year, month },
         },
-      },
+        create: {
+          userId: user.id,
+          year,
+          month,
+          jornadas: { create: jornadaRows },
+        },
+        update: {
+          jornadas: {
+            deleteMany: {},
+            create: jornadaRows,
+          },
+          // Con cambios, la agenda queda pendiente de confirmar: hasta entonces los
+          // pacientes no ven turnos de días o franjas que el médico ya modificó.
+          ...(cambioDisponibilidad ? { isConfirmed: false, confirmedAt: null } : {}),
+        },
+        include: { jornadas: { select: { id: true, date: true } } },
+      });
+
+      // Al recrearse las jornadas, los turnos ya generados quedaron sin vínculo.
+      for (const jornada of availability.jornadas) {
+        await tx.turno.updateMany({
+          where: { doctorId: user.id, date: jornada.date },
+          data: { jornadaId: jornada.id },
+        });
+      }
     });
 
     revalidatePath("/dashboard/disponibilidad");
+    revalidatePath("/dashboard/agenda");
+    revalidatePath("/dashboard/agenda-generada");
+    revalidatePath("/dashboard/turnos");
     return {
       success: true,
       message: "Disponibilidad guardada correctamente.",

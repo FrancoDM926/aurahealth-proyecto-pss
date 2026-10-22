@@ -170,12 +170,6 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
-            href={`/dashboard/agenda-generada?year=${year}&month=${month}`}
-            className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-ink hover:bg-background"
-          >
-            Ver generación
-          </Link>
-          <Link
             href={`/dashboard/disponibilidad?year=${year}&month=${month}`}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
           >

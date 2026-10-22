@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { saveMonthlyAvailability, type JornadaPayload } from "@/actions/availability";
 import {
   isPastDate,
+  isPastTime,
   opcionesHoraFin,
   opcionesHoraInicio,
   SLOT_DURATION_MINUTES,
@@ -29,6 +30,11 @@ type Props = {
 };
 
 const HORAS_INICIO = opcionesHoraInicio();
+
+/** Horarios de inicio posibles para un día: hoy solo los que todavía no pasaron. */
+function horasInicioDelDia(date: string, today: string): string[] {
+  return date === today ? HORAS_INICIO.filter((h) => !isPastTime(date, h)) : HORAS_INICIO;
+}
 
 /** Agrega el valor actual si quedó fuera de la grilla (franjas guardadas antes del cambio). */
 function conValorActual(opciones: string[], actual: string): string[] {
@@ -132,9 +138,19 @@ export function MonthlyAvailabilityForm({
     const key = dateKey(year, month, day);
     if (isPastDate(key, today)) return;
     const existing = jornadas[key];
+    const horas = horasInicioDelDia(key, today);
+    if (horas.length === 0) {
+      setMessage("Ya no quedan horarios disponibles para hoy.");
+      return;
+    }
+    // Hoy no se puede arrancar en un horario que ya pasó (aunque la franja estuviera guardada).
+    const preferido = existing?.startTime ?? "08:00";
+    const start = horas.includes(preferido) ? preferido : horas[0];
+    const ends = opcionesHoraFin(start);
+    const preferidoFin = existing?.endTime ?? "13:00";
     setEditingDay(key);
-    setDraftStart(existing?.startTime ?? "08:00");
-    setDraftEnd(existing?.endTime ?? "13:00");
+    setDraftStart(start);
+    setDraftEnd(ends.includes(preferidoFin) ? preferidoFin : ends[0]);
   };
 
   /** Al cambiar el inicio, si el fin quedó antes, se corre al primer horario válido. */
@@ -291,7 +307,7 @@ export function MonthlyAvailabilityForm({
                   value={draftStart}
                   onChange={(e) => handleStartChange(e.target.value)}
                 >
-                  {conValorActual(HORAS_INICIO, draftStart).map((h) => (
+                  {conValorActual(horasInicioDelDia(editingDay, today), draftStart).map((h) => (
                     <option key={h} value={h}>
                       {h}
                     </option>
@@ -390,15 +406,6 @@ export function MonthlyAvailabilityForm({
           >
             {loading ? "Guardando…" : "Guardar disponibilidad"}
           </button>
-          {initialJornadas.length > 0 && (
-            <button
-              type="button"
-              onClick={() => router.push(`/dashboard/agenda-generada?year=${year}&month=${month}`)}
-              className="rounded-lg border-2 border-primary bg-primary-light/40 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-light"
-            >
-              Ver turnos a generar
-            </button>
-          )}
           <button
             type="button"
             onClick={() => router.push("/dashboard")}

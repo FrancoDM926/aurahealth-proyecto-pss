@@ -9,6 +9,17 @@ import {
 } from "@/actions/turnos";
 import Link from "next/link";
 
+type TurnoFuera = AgendaPreviewData["cambios"]["aQuitar"][number];
+
+/** Agrupa por día para listar "Mié 02/09: 08:00, 08:30…" en vez de un renglón por turno. */
+function agruparPorDia(turnos: TurnoFuera[]): [string, TurnoFuera[]][] {
+  const porDia = new Map<string, TurnoFuera[]>();
+  for (const t of turnos) {
+    porDia.set(t.date, [...(porDia.get(t.date) ?? []), t]);
+  }
+  return [...porDia.entries()];
+}
+
 interface AgendaGeneradaViewProps {
   initialData: AgendaPreviewData;
 }
@@ -17,13 +28,18 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
   const router = useRouter();
   const [data] = useState<AgendaPreviewData>(initialData);
   const [loading, setLoading] = useState(false);
+  const { cambios } = initialData;
+  const hayCambios = cambios.aCrear > 0 || cambios.aQuitar.length > 0;
+  // Con turnos ya generados y nada pendiente, la agenda está al día. Si hay cambios
+  // (turnos nuevos o a quitar), falta que el médico los confirme.
   const [generationResult, setGenerationResult] = useState<GenerateTurnosResult | null>(
-    initialData.alreadyGenerated
+    initialData.alreadyGenerated && !hayCambios
       ? {
           success: true,
           message: `Agenda ya generada previamente con ${initialData.existingTurnosCount} turnos en estado disponible.`,
           createdCount: 0,
           existingCount: initialData.existingTurnosCount,
+          removedCount: 0,
           totalSlots: initialData.summary.totalTurnos,
         }
       : null
@@ -139,7 +155,7 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
               {data.summary.totalTurnos}
             </strong>
             <p className="mt-1 text-xs text-ink-secondary font-medium">
-              turnos a generar
+              turnos en la disponibilidad vigente
             </p>
           </div>
 
@@ -164,6 +180,71 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
           )}
         </div>
       </section>
+
+      {/* BLOQUE 1.5: CAMBIOS A CONFIRMAR */}
+      {initialData.alreadyGenerated && (
+        <section className="mb-6 rounded-xl border-2 border-ink bg-surface p-5 sm:p-6 shadow-sm">
+          <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-ink-secondary">
+            Cambios al confirmar
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-lg border border-dashed border-line bg-background p-4">
+              <strong className="text-2xl font-bold text-primary">{cambios.aCrear}</strong>
+              <p className="mt-1 text-xs font-medium text-ink-secondary">turnos nuevos a crear</p>
+            </div>
+            <div className="rounded-lg border border-dashed border-line bg-background p-4">
+              <strong className="text-2xl font-bold text-red-800">{cambios.aQuitar.length}</strong>
+              <p className="mt-1 text-xs font-medium text-ink-secondary">
+                turnos a quitar (ya no están en tu disponibilidad)
+              </p>
+            </div>
+            <div className="rounded-lg border border-dashed border-line bg-background p-4">
+              <strong className="text-2xl font-bold text-ink">{cambios.preservados}</strong>
+              <p className="mt-1 text-xs font-medium text-ink-secondary">turnos que se conservan</p>
+            </div>
+          </div>
+
+          {!hayCambios && cambios.conservadosPorReserva.length === 0 && (
+            <p className="mt-4 text-xs text-ink-secondary">
+              La disponibilidad no tiene cambios respecto de los turnos ya generados.
+            </p>
+          )}
+
+          {cambios.aQuitar.length > 0 && (
+            <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+              <p className="font-semibold">
+                Al confirmar se eliminan estos turnos disponibles:
+              </p>
+              <ul className="mt-2 space-y-1 text-xs">
+                {agruparPorDia(cambios.aQuitar).map(([dia, horarios]) => (
+                  <li key={dia}>
+                    <strong>{horarios[0].displayDate}</strong>: {horarios.map((t) => t.startTime).join(", ")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {cambios.conservadosPorReserva.length > 0 && (
+            <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">
+                Estos turnos ya no están en tu disponibilidad pero no se pueden quitar: están
+                reservados o tienen un estado registrado.
+              </p>
+              <ul className="mt-2 space-y-1 text-xs">
+                {agruparPorDia(cambios.conservadosPorReserva).map(([dia, horarios]) => (
+                  <li key={dia}>
+                    <strong>{horarios[0].displayDate}</strong>: {horarios.map((t) => t.startTime).join(", ")}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs">
+                Cancelalos desde la gestión de turnos si querés liberar ese horario.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* BLOQUE 2: VISTA PREVIA */}
       <section className="mb-6 rounded-xl border-2 border-ink bg-surface p-5 sm:p-6 shadow-sm">
@@ -303,8 +384,8 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
                 </svg>
                 Generando turnos...
               </span>
-            ) : isGenerated ? (
-              "Reconfirmar generación (Idempotente)"
+            ) : initialData.alreadyGenerated ? (
+              hayCambios ? "Confirmar cambios y abrir agenda" : "Reconfirmar y abrir agenda"
             ) : (
               "Generar y abrir agenda"
             )}
@@ -345,6 +426,11 @@ export function AgendaGeneradaView({ initialData }: AgendaGeneradaViewProps) {
               {generationResult && generationResult.existingCount > 0 && (
                 <p>
                   • <strong>Turnos preexistentes preservados (Idempotencia):</strong> {generationResult.existingCount} sin duplicados.
+                </p>
+              )}
+              {generationResult && generationResult.removedCount > 0 && (
+                <p>
+                  • <strong>Turnos quitados:</strong> {generationResult.removedCount} que ya no estaban en la disponibilidad.
                 </p>
               )}
             </div>

@@ -5,6 +5,7 @@ import {
   generateTurnosForFranja,
   generateTurnosFromFranjasList,
   filterTurnosForIdempotency,
+  calcularCambiosTurnos,
   DURACION_TURNO_MINUTOS,
   calculateSobranteMinutos,
 } from "../src/lib/turno-generator";
@@ -151,5 +152,83 @@ describe("US-08 — Generación automática de turnos de 30 minutos", () => {
       () => splitFranjaIntoSlots("10:00", "10:00"),
       /debe ser posterior a la hora de inicio/
     );
+  });
+});
+
+describe("calcularCambiosTurnos (confirmación de la agenda generada)", () => {
+  const fecha = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+  const vigente = (iso: string, startTime: string, endTime: string) => ({
+    doctorId: "d1",
+    date: fecha(iso),
+    startTime,
+    endTime,
+    duration: 30,
+    status: "DISPONIBLE" as const,
+  });
+  const existente = (id: string, iso: string, startTime: string, status = "DISPONIBLE") => ({
+    id,
+    date: fecha(iso),
+    startTime,
+    endTime: startTime,
+    status,
+  });
+  const nuncaPaso = () => false;
+
+  test("crea los turnos que todavía no existen y conserva los que siguen vigentes", () => {
+    const r = calcularCambiosTurnos(
+      [vigente("2026-11-02", "08:00", "08:30"), vigente("2026-11-02", "08:30", "09:00")],
+      [existente("t1", "2026-11-02", "08:00")],
+      nuncaPaso
+    );
+    assert.equal(r.aCrear.length, 1);
+    assert.equal(r.aCrear[0].startTime, "08:30");
+    assert.equal(r.preservados, 1);
+    assert.equal(r.aQuitar.length, 0);
+  });
+
+  test("quita los turnos disponibles que quedaron fuera de la disponibilidad", () => {
+    const r = calcularCambiosTurnos(
+      [vigente("2026-11-02", "08:00", "08:30")],
+      [
+        existente("t1", "2026-11-02", "08:00"),
+        existente("t2", "2026-11-02", "08:30"),
+        existente("t3", "2026-11-05", "08:00"),
+      ],
+      nuncaPaso
+    );
+    assert.deepEqual(r.aQuitar.map((t) => t.id).sort(), ["t2", "t3"]);
+    assert.equal(r.preservados, 1);
+  });
+
+  test("no quita turnos reservados o con estado: los informa aparte", () => {
+    const r = calcularCambiosTurnos(
+      [],
+      [existente("t1", "2026-11-02", "08:00", "RESERVADO"), existente("t2", "2026-11-02", "08:30")],
+      nuncaPaso
+    );
+    assert.deepEqual(r.conservadosPorReserva.map((t) => t.id), ["t1"]);
+    assert.deepEqual(r.aQuitar.map((t) => t.id), ["t2"]);
+  });
+
+  test("no crea ni quita turnos de horarios que ya pasaron", () => {
+    const yaPaso = (date: string, startTime: string) => date === "2026-11-02" && startTime < "10:00";
+    const r = calcularCambiosTurnos(
+      [vigente("2026-11-02", "08:00", "08:30"), vigente("2026-11-02", "10:00", "10:30")],
+      [existente("t1", "2026-11-02", "09:00")],
+      yaPaso
+    );
+    assert.deepEqual(r.aCrear.map((t) => t.startTime), ["10:00"]);
+    assert.equal(r.aQuitar.length, 0);
+  });
+
+  test("reconfirmar sin cambios no crea ni quita nada", () => {
+    const r = calcularCambiosTurnos(
+      [vigente("2026-11-02", "08:00", "08:30")],
+      [existente("t1", "2026-11-02", "08:00")],
+      nuncaPaso
+    );
+    assert.equal(r.aCrear.length, 0);
+    assert.equal(r.aQuitar.length, 0);
+    assert.equal(r.preservados, 1);
   });
 });

@@ -65,6 +65,14 @@ export default async function DashboardPage() {
             Registrar estado de turnos
           </Link>
         )}
+        {role === "ENFERMERA" && (
+          <Link
+            href="/dashboard/catalogo-vacunas"
+            className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+          >
+            Administrar catálogo de vacunas
+          </Link>
+        )}
         {role === "ADMINISTRADOR" && (
           <Link
             href="/dashboard/admin/usuarios"
