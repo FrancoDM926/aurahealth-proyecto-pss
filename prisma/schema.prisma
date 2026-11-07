@@ -59,6 +59,8 @@ model User {
   cambiosEstadoTurno    TurnoEstadoAuditLog[]   @relation("TurnoEstadoCambiadoPor")
   personasAtendidas     PersonaAtendida[]
   turnosCancelados      TurnoCancelacion[]
+  preciosConsulta       PrecioConsulta[]        @relation("PrecioConsultaDoctor")
+  pagosRegistrados      Pago[]                  @relation("PagoRegistradoPor")
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -145,6 +147,8 @@ model Turno {
   // US-18 (RF-TUR-07): historial auditable de cambios de estado del turno.
   estadoAuditLogs  TurnoEstadoAuditLog[]
   cancelaciones    TurnoCancelacion[]
+  // US-35: pago de la consulta (un único pago ACTIVO por turno cumplido).
+  pagos            Pago[]
 
   @@unique([doctorId, date, startTime])
   @@index([doctorId, date])
@@ -254,6 +258,100 @@ model Vacuna {
   updatedAt    DateTime @updatedAt
 
   @@index([isActive, denominacion])
+}
+
+/// US-34 (RN-14): obra social con su descuento porcentual predefinido, que se aplica
+/// sobre el precio de consulta sin cobertura del médico. Lo administra el
+/// administrador desde Configuración. Una entidad sin fila (o paciente particular)
+/// no recibe descuento.
+model ObraSocial {
+  id                  String   @id @default(cuid())
+  nombre              String   @unique
+  /// Entero de 0 a 100.
+  descuentoPorcentaje Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+/// US-33 (RF-PAG-02): precio de la consulta SIN cobertura que define cada médico.
+/// Rige desde `vigenteDesde`; las filas anteriores forman el historial de vigencias
+/// y nunca se pisan ni se borran. El precio vigente a una fecha es la fila más
+/// reciente con `vigenteDesde` menor o igual a esa fecha. Importe en centavos.
+model PrecioConsulta {
+  id            String   @id @default(cuid())
+  doctorId      String
+  doctor        User     @relation("PrecioConsultaDoctor", fields: [doctorId], references: [id], onDelete: Cascade)
+  montoCentavos Int
+  vigenteDesde  DateTime @db.Date
+  createdAt     DateTime @default(now())
+
+  @@unique([doctorId, vigenteDesde])
+}
+
+enum MedioPago {
+  EFECTIVO
+  TRANSFERENCIA
+}
+
+enum EstadoPago {
+  ACTIVO
+  ANULADO
+}
+
+/// US-35 / US-36 (RF-PAG-04, RF-PAG-05): pago de una consulta cumplida. Guarda una
+/// copia de los valores aplicados al momento del cobro (precio, cobertura, descuento
+/// y datos del comprobante) para que cambios posteriores de precio o de cobertura
+/// no los alteren.
+/// La regla "un turno no tiene dos pagos ACTIVOS" la garantiza un índice único
+/// parcial creado en la migración (Pago_turnoId_activo_key); Prisma no puede
+/// declararlo acá.
+model Pago {
+  id                         String     @id @default(cuid())
+  turnoId                    String
+  turno                      Turno      @relation(fields: [turnoId], references: [id], onDelete: Restrict)
+  estado                     EstadoPago @default(ACTIVO)
+  medio                      MedioPago
+  /// Referencia de la operación (solo transferencia).
+  referencia                 String?
+
+  // Importe aplicado (US-34), en centavos.
+  precioSinCoberturaCentavos Int
+  precioVigenteDesde         DateTime   @db.Date
+  /// Entidad de la obra social aplicada; nulo = paciente particular.
+  coberturaEntidad           String?
+  descuentoPorcentaje        Int
+  descuentoCentavos          Int
+  importeCentavos            Int
+
+  // Comprobante (US-36).
+  /// Numeración correlativa, sin huecos ni duplicados (ver ComprobanteContador).
+  comprobanteNumero          Int        @unique
+  pacienteNombre             String
+  pacienteDocumento          String?
+  prestacion                 String
+  profesionalNombre          String
+
+  registradoPorId            String
+  registradoPor              User       @relation("PagoRegistradoPor", fields: [registradoPorId], references: [id], onDelete: Restrict)
+  registradoPorNombre        String
+  createdAt                  DateTime   @default(now())
+
+  // Anulación (US-61, fuera de alcance de este sprint): el reporte de pagos (US-47)
+  // ya distingue los anulados.
+  anuladoAt                  DateTime?
+  anuladoMotivo              String?
+
+  @@index([createdAt])
+  @@index([turnoId])
+}
+
+/// US-36: contador de la numeración de comprobantes. Fila única (id = 1). Se
+/// incrementa dentro de la misma transacción que crea el pago: el bloqueo de fila
+/// serializa los cobros concurrentes y, si la transacción falla, el número no se
+/// consume (sin huecos ni duplicados).
+model ComprobanteContador {
+  id     Int @id @default(1)
+  ultimo Int @default(0)
 }
 
 enum EmailStatus {

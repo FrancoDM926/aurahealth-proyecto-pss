@@ -57,3 +57,11 @@ export async function getCancelacionAntelacion(): Promise<number> {
     ? horas
     : ANTELACION_CANCELACION_DEFAULT_HORAS;
 }
+
+/** US-34: obras sociales con su descuento porcentual predefinido, para administrarlas. */
+export async function getObrasSociales() {
+  return db.obraSocial.findMany({
+    orderBy: { nombre: "asc" },
+    select: { id: true, nombre: true, descuentoPorcentaje: true },
+  });
+}

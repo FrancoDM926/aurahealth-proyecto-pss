@@ -14,7 +14,8 @@ const adapter = new PrismaPg(pool);
 const cachedPrisma = globalForPrisma.prisma;
 const hasLatestModels =
   cachedPrisma !== undefined && "turnoEstadoAuditLog" in cachedPrisma &&
-  "vacuna" in cachedPrisma && "plantillaEmail" in cachedPrisma;
+  "vacuna" in cachedPrisma && "plantillaEmail" in cachedPrisma &&
+  "pago" in cachedPrisma && "obraSocial" in cachedPrisma && "precioConsulta" in cachedPrisma;
 
 export const db = hasLatestModels
   ? cachedPrisma

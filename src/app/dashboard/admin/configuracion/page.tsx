@@ -3,10 +3,12 @@ import { LimitesJornadasForm } from "@/components/limites-jornadas-form";
 import { SalaDireccionForm } from "@/components/sala-direccion-form";
 import { RecordatorioAntelacionForm } from "@/components/recordatorio-antelacion-form";
 import { CancelacionAntelacionForm } from "@/components/cancelacion-antelacion-form";
+import { ObrasSocialesForm } from "@/components/obras-sociales-form";
 import { requireRoles } from "@/lib/auth-session";
 import {
   getCancelacionAntelacion,
   getLimitesJornadas,
+  getObrasSociales,
   getRecordatorioAntelacion,
   getSalaDireccion,
 } from "@/lib/configuracion";
@@ -24,6 +26,7 @@ export default async function ConfiguracionPage() {
   const salaDireccion = await getSalaDireccion();
   const antelacionRecordatorio = await getRecordatorioAntelacion();
   const antelacionCancelacion = await getCancelacionAntelacion();
+  const obrasSociales = await getObrasSociales();
 
   return (
     <DashboardShell
@@ -41,6 +44,7 @@ export default async function ConfiguracionPage() {
           <SalaDireccionForm initial={salaDireccion} />
           <RecordatorioAntelacionForm initial={antelacionRecordatorio} />
           <CancelacionAntelacionForm initial={antelacionCancelacion} />
+          <ObrasSocialesForm initial={obrasSociales} />
         </div>
       </div>
     </DashboardShell>
