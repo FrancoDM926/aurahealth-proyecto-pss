@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { assertRoles } from "@/lib/auth-session";
 import { validarLimitesJornadas } from "@/lib/availability-rn02";
 import { validarAntelacionRecordatorio } from "@/lib/recordatorios";
+import { validarAntelacionCancelacion } from "@/lib/reservas";
 import {
   procesarRecordatoriosPendientes,
   type ResumenRecordatorios,
@@ -110,6 +111,37 @@ export async function saveRecordatorioAntelacion(horas: number): Promise<ActionR
   } catch (err) {
     console.error("saveRecordatorioAntelacion:", err);
     return { success: false, message: "No se pudo guardar la antelación del recordatorio." };
+  }
+}
+
+/**
+ * US-16: el administrador define la antelación mínima (en horas) con la que el
+ * paciente puede cancelar un turno. El valor inicial del sistema son 24 horas.
+ */
+export async function saveCancelacionAntelacion(horas: number): Promise<ActionResult> {
+  try {
+    await assertRoles(["ADMINISTRADOR"]);
+  } catch {
+    return { success: false, message: "No tenés permisos para esta acción." };
+  }
+
+  const error = validarAntelacionCancelacion(horas);
+  if (error) {
+    return { success: false, message: error };
+  }
+
+  try {
+    await db.configuracion.upsert({
+      where: { id: 1 },
+      create: { id: 1, cancelacionAntelacionHoras: horas },
+      update: { cancelacionAntelacionHoras: horas },
+    });
+    revalidatePath("/dashboard/admin/configuracion");
+    revalidatePath("/dashboard/mis-turnos");
+    return { success: true, message: `Antelación mínima para cancelar actualizada a ${horas} h.` };
+  } catch (err) {
+    console.error("saveCancelacionAntelacion:", err);
+    return { success: false, message: "No se pudo guardar la antelación de cancelación." };
   }
 }
 
