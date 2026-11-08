@@ -17,6 +17,11 @@ type NavKey =
   | "mis-turnos"
   | "estado-turnos"
   | "catalogo-vacunas"
+  | "agenda-vacunatorio"
+  | "mostrador-vacunacion"
+  | "dosis-aplicadas"
+  | "turnos-vacunacion"
+  | "carnet"
   | "costo-consulta"
   | "pagos"
   | "comprobantes"
@@ -46,7 +51,9 @@ export function DashboardShell({
   const links: { key: NavKey; href: string; label: string; roles: Role[] }[] = [
     { key: "inicio", href: "/dashboard", label: "Inicio", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },
     { key: "turnos", href: "/dashboard/turnos", label: "Turnos disponibles", roles: ["USUARIO"] },
+    { key: "turnos-vacunacion", href: "/dashboard/turnos-vacunacion", label: "Vacunación", roles: ["USUARIO"] },
     { key: "mis-turnos", href: "/dashboard/mis-turnos", label: "Mis turnos", roles: ["USUARIO"] },
+    { key: "carnet", href: "/dashboard/carnet", label: "Mi carnet", roles: ["USUARIO"] },
     { key: "comprobantes", href: "/dashboard/comprobantes", label: "Comprobantes", roles: ["USUARIO"] },
     { key: "agenda", href: "/dashboard/agenda", label: "Mi agenda", roles: ["MEDICO"] },
     { key: "disponibilidad", href: "/dashboard/disponibilidad", label: "Disponibilidad", roles: ["MEDICO"] },
@@ -54,6 +61,9 @@ export function DashboardShell({
     { key: "estado-turnos", href: "/dashboard/estado-turnos", label: "Estado de turnos", roles: ["MEDICO", "ADMINISTRATIVO"] },
     { key: "pagos", href: "/dashboard/pagos", label: "Pagos", roles: ["ADMINISTRATIVO"] },
     { key: "catalogo-vacunas", href: "/dashboard/catalogo-vacunas", label: "Catálogo de vacunas", roles: ["ENFERMERA"] },
+    { key: "agenda-vacunatorio", href: "/dashboard/agenda-vacunatorio", label: "Agenda del vacunatorio", roles: ["ENFERMERA"] },
+    { key: "mostrador-vacunacion", href: "/dashboard/mostrador/vacunacion", label: "Turnos de vacunación", roles: ["ENFERMERA", "ADMINISTRATIVO"] },
+    { key: "dosis-aplicadas", href: "/dashboard/dosis-aplicadas", label: "Dosis aplicadas", roles: ["ENFERMERA"] },
     { key: "usuarios", href: "/dashboard/admin/usuarios", label: "Usuarios", roles: ["ADMINISTRADOR"] },
     { key: "configuracion", href: "/dashboard/admin/configuracion", label: "Configuración", roles: ["ADMINISTRADOR"] },
     { key: "emails", href: "/dashboard/admin/emails", label: "Emails", roles: ["ADMINISTRADOR"] },
