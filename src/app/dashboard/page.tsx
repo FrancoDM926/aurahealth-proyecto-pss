@@ -49,6 +49,14 @@ export default async function DashboardPage() {
             Buscar turnos disponibles
           </Link>
         )}
+        {role === "USUARIO" && (
+          <Link
+            href="/dashboard/turnos-vacunacion"
+            className="mt-3 rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-light"
+          >
+            Sacar un turno de vacunación
+          </Link>
+        )}
         {role === "MEDICO" && (
           <Link
             href="/dashboard/disponibilidad"
@@ -71,6 +79,14 @@ export default async function DashboardPage() {
             className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
           >
             Administrar catálogo de vacunas
+          </Link>
+        )}
+        {role === "ENFERMERA" && (
+          <Link
+            href="/dashboard/agenda-vacunatorio"
+            className="mt-3 rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-light"
+          >
+            Cargar la agenda del vacunatorio
           </Link>
         )}
         {role === "ADMINISTRADOR" && (
