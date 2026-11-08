@@ -10,7 +10,15 @@ import {
   type VacunaActionResult,
   type VacunaItem,
 } from "@/actions/vacunas";
-import type { VacunaErrores, VacunaInput } from "@/lib/vacunas";
+import {
+  MAX_DOSIS_ESQUEMA,
+  describirEsquema,
+  dosisPorDefecto,
+  type DosisInput,
+  type EsquemaErrores,
+  type VacunaErrores,
+  type VacunaInput,
+} from "@/lib/vacunas";
 
 const VACIO: VacunaInput = { denominacion: "", laboratorio: "", esquemaDosis: "" };
 
@@ -26,6 +34,8 @@ export function CatalogoVacunasView({ vacunas }: Props) {
   const [form, setForm] = useState<VacunaInput>(VACIO);
   const [editing, setEditing] = useState<VacunaItem | null>(null);
   const [errors, setErrors] = useState<VacunaErrores>({});
+  const [dosis, setDosis] = useState<DosisInput[]>(dosisPorDefecto());
+  const [esquemaErrors, setEsquemaErrors] = useState<EsquemaErrores | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -37,7 +47,12 @@ export function CatalogoVacunasView({ vacunas }: Props) {
     setForm(VACIO);
     setEditing(null);
     setErrors({});
+    setDosis(dosisPorDefecto());
+    setEsquemaErrors(null);
   };
+
+  const setDosisField = (i: number, patch: Partial<DosisInput>) =>
+    setDosis((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
 
   const startEdit = (vacuna: VacunaItem) => {
     setMessage(null);
@@ -48,6 +63,15 @@ export function CatalogoVacunasView({ vacunas }: Props) {
       laboratorio: vacuna.laboratorio,
       esquemaDosis: vacuna.esquemaDosis,
     });
+    setDosis(
+      vacuna.dosis.length > 0
+        ? vacuna.dosis.map((d) => ({
+            etiqueta: d.etiqueta,
+            diasDesdeAnterior: d.diasDesdeAnterior,
+          }))
+        : dosisPorDefecto()
+    );
+    setEsquemaErrors(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -55,10 +79,13 @@ export function CatalogoVacunasView({ vacunas }: Props) {
     e.preventDefault();
     setMessage(null);
     setErrors({});
+    setEsquemaErrors(null);
     setSaving(true);
     let result: VacunaActionResult;
     try {
-      result = editing ? await modificarVacuna(editing.id, form) : await crearVacuna(form);
+      result = editing
+        ? await modificarVacuna(editing.id, form, dosis)
+        : await crearVacuna(form, dosis);
     } catch (err) {
       console.error("catálogo de vacunas:", err);
       setSaving(false);
@@ -69,6 +96,7 @@ export function CatalogoVacunasView({ vacunas }: Props) {
     setMessage(result.message ?? null);
     if (!result.success) {
       setErrors(result.errors ?? {});
+      setEsquemaErrors(result.esquemaErrors ?? null);
       return;
     }
     resetForm();
@@ -171,6 +199,80 @@ export function CatalogoVacunasView({ vacunas }: Props) {
             </div>
           </div>
 
+          <fieldset className="rounded-lg border border-line p-4">
+            <legend className="px-1 text-sm font-semibold text-ink">Dosis del esquema</legend>
+            <p className="mb-3 text-xs text-ink-secondary">
+              Se usan para elegir la dosis al aplicarla y para indicar si el esquema del carnet
+              quedó incompleto.
+            </p>
+            <div className="space-y-2">
+              {dosis.map((d, i) => (
+                <div key={i} className="flex flex-wrap items-start gap-2">
+                  <span className="mt-2 w-6 text-sm font-semibold text-ink-secondary">{i + 1}.</span>
+                  <div>
+                    <input
+                      aria-label={`Nombre de la dosis ${i + 1}`}
+                      className={INPUT_CLASS}
+                      placeholder="Ej.: 1ª dosis, Refuerzo"
+                      maxLength={40}
+                      value={d.etiqueta}
+                      onChange={(e) => setDosisField(i, { etiqueta: e.target.value })}
+                    />
+                    {esquemaErrors?.filas[i] && (
+                      <p className="mt-1 text-xs text-error">{esquemaErrors.filas[i]}</p>
+                    )}
+                  </div>
+                  {i > 0 && (
+                    <input
+                      aria-label={`Días desde la dosis anterior (dosis ${i + 1})`}
+                      type="number"
+                      min={1}
+                      className={`${INPUT_CLASS} w-52`}
+                      placeholder="Días desde la anterior"
+                      value={d.diasDesdeAnterior ?? ""}
+                      onChange={(e) =>
+                        setDosisField(i, {
+                          diasDesdeAnterior: e.target.value === "" ? null : Number(e.target.value),
+                        })
+                      }
+                    />
+                  )}
+                  {dosis.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setDosis((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="rounded-lg border border-line px-3 py-2 text-xs font-semibold text-ink hover:bg-background"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {esquemaErrors?.general && (
+              <p className="mt-2 text-xs text-error">{esquemaErrors.general}</p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={dosis.length >= MAX_DOSIS_ESQUEMA}
+                onClick={() =>
+                  setDosis((prev) => [...prev, { etiqueta: "", diasDesdeAnterior: null }])
+                }
+                className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-background disabled:opacity-60"
+              >
+                Agregar dosis
+              </button>
+              <button
+                type="button"
+                onClick={() => setField("esquemaDosis", describirEsquema(dosis))}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-background"
+              >
+                Completar la descripción con las dosis
+              </button>
+            </div>
+          </fieldset>
+
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
@@ -219,7 +321,12 @@ export function CatalogoVacunasView({ vacunas }: Props) {
                   <tr key={vacuna.id} className="border-b border-line/80">
                     <td className="py-3 pr-4">{vacuna.denominacion}</td>
                     <td className="py-3 pr-4">{vacuna.laboratorio}</td>
-                    <td className="py-3 pr-4">{vacuna.esquemaDosis}</td>
+                    <td className="py-3 pr-4">
+                      {vacuna.esquemaDosis}
+                      <span className="block text-xs text-ink-secondary">
+                        {vacuna.dosis.map((d) => d.etiqueta).join(" · ")}
+                      </span>
+                    </td>
                     <td className="py-3 pr-4">
                       <span
                         className={

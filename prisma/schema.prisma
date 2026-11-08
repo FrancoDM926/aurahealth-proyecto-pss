@@ -27,56 +27,63 @@ enum MedicalSpecialty {
 }
 
 model User {
-  id                    String    @id @default(cuid())
-  clerkUserId           String    @unique
-  email                 String    @unique
-  firstName             String
-  lastName              String
-  docType               String    @default("DNI")
+  id                 String    @id @default(cuid())
+  clerkUserId        String    @unique
+  email              String    @unique
+  firstName          String
+  lastName           String
+  docType            String    @default("DNI")
   // Opcionales solo para usuarios internos: el administrador los crea sin
   // estos datos y cada uno los completa desde "Mi cuenta". El autorregistro
   // de pacientes (US-01) los sigue exigiendo.
-  docNumber             String?   @unique
-  birthDate             DateTime?
-  phone                 String?
-  address               String?
-  alternativeContact    String?
+  docNumber          String?   @unique
+  birthDate          DateTime?
+  phone              String?
+  address            String?
+  alternativeContact String?
 
   // Cobertura / Obra Social
-  coverageType          String    @default("PARTICULAR") // "OBRA_SOCIAL" | "PARTICULAR"
+  coverageType          String  @default("PARTICULAR") // "OBRA_SOCIAL" | "PARTICULAR"
   healthInsuranceEntity String?
   healthInsurancePlan   String?
   healthInsuranceNumber String?
 
-  role                  Role      @default(USUARIO)
-  specialty             MedicalSpecialty?
-  isActive              Boolean   @default(true)
-  deactivatedAt         DateTime?
+  role          Role              @default(USUARIO)
+  specialty     MedicalSpecialty?
+  isActive      Boolean           @default(true)
+  deactivatedAt DateTime?
 
-  monthlyAvailabilities MonthlyAvailability[]
-  turnos                Turno[]                 @relation("DoctorTurnos")
-  turnosReservados      Turno[]                 @relation("ReservedTurnos")
-  cambiosEstadoTurno    TurnoEstadoAuditLog[]   @relation("TurnoEstadoCambiadoPor")
-  personasAtendidas     PersonaAtendida[]
-  turnosCancelados      TurnoCancelacion[]
-  preciosConsulta       PrecioConsulta[]        @relation("PrecioConsultaDoctor")
-  pagosRegistrados      Pago[]                  @relation("PagoRegistradoPor")
+  monthlyAvailabilities     MonthlyAvailability[]
+  turnos                    Turno[]                      @relation("DoctorTurnos")
+  turnosReservados          Turno[]                      @relation("ReservedTurnos")
+  cambiosEstadoTurno        TurnoEstadoAuditLog[]        @relation("TurnoEstadoCambiadoPor")
+  personasAtendidas         PersonaAtendida[]
+  turnosCancelados          TurnoCancelacion[]
+  preciosConsulta           PrecioConsulta[]             @relation("PrecioConsultaDoctor")
+  pagosRegistrados          Pago[]                       @relation("PagoRegistradoPor")
+  // Vacunatorio (US-63, US-28, US-29)
+  jornadasVacunatorio       JornadaVacunatorio[]         @relation("JornadaVacunatorioCreador")
+  turnosVacunacionTitular   TurnoVacunacion[]            @relation("TurnoVacunacionTitular")
+  turnosVacunacionOtorgados TurnoVacunacion[]            @relation("TurnoVacunacionOtorgadoPor")
+  cancelacionesVacunacion   TurnoVacunacionCancelacion[] @relation("VacunacionCancelaciones")
+  aplicacionesRecibidas     AplicacionDosis[]            @relation("AplicacionPacienteUser")
+  aplicacionesRegistradas   AplicacionDosis[]            @relation("AplicacionEnfermera")
 
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MonthlyAvailability {
-  id          String   @id @default(cuid())
+  id          String                @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   year        Int
   month       Int
-  isConfirmed Boolean  @default(false)
+  isConfirmed Boolean               @default(false)
   confirmedAt DateTime?
   jornadas    AvailabilityJornada[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
 
   @@unique([userId, year, month])
 }
@@ -116,39 +123,41 @@ model Turno {
   jornadaId String?
   jornada   AvailabilityJornada? @relation(fields: [jornadaId], references: [id], onDelete: SetNull)
   date      DateTime             @db.Date
-  startTime String               // "HH:mm" (ej. "08:00")
-  endTime   String               // "HH:mm" (ej. "08:30")
+  startTime String // "HH:mm" (ej. "08:00")
+  endTime   String // "HH:mm" (ej. "08:30")
   duration  Int                  @default(30) // Fijo 30 minutos (RN-09)
   status    EstadoTurno          @default(DISPONIBLE)
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
 
   // US-13: datos de la reserva. Nulos mientras está DISPONIBLE.
-  reservedById     String?
-  reservedBy       User?     @relation("ReservedTurnos", fields: [reservedById], references: [id], onDelete: SetNull)
+  reservedById      String?
+  reservedBy        User?            @relation("ReservedTurnos", fields: [reservedById], references: [id], onDelete: SetNull)
   // US-64: persona atendida cuando el turno es a nombre de otra persona. El
   // nombre se copia en patientFirstName/patientLastName para que lo lean
   // US-14, US-18 y la agenda sin otra consulta.
   personaAtendidaId String?
   personaAtendida   PersonaAtendida? @relation(fields: [personaAtendidaId], references: [id], onDelete: SetNull)
-  patientFirstName String?
-  patientLastName  String?
-  motivoConsulta   String?
-  reservedAt       DateTime?
+  patientFirstName  String?
+  patientLastName   String?
+  motivoConsulta    String?
+  reservedAt        DateTime?
 
   // US-15: recordatorio automático del turno (RF-TUR-04, RF-NOT-01).
   recordatorioEstado      EstadoRecordatorio @default(PENDIENTE)
   recordatorioEnviadoAt   DateTime?
   recordatorioIntentos    Int                @default(0)
   recordatorioUltimoError String?
-  /** Id del registro en EmailAuditLog que dejó el envío (US-21). */
+  /**
+   * Id del registro en EmailAuditLog que dejó el envío (US-21).
+   */
   recordatorioEmailLogId  String?
 
   // US-18 (RF-TUR-07): historial auditable de cambios de estado del turno.
-  estadoAuditLogs  TurnoEstadoAuditLog[]
-  cancelaciones    TurnoCancelacion[]
+  estadoAuditLogs TurnoEstadoAuditLog[]
+  cancelaciones   TurnoCancelacion[]
   // US-35: pago de la consulta (un único pago ACTIVO por turno cumplido).
-  pagos            Pago[]
+  pagos           Pago[]
 
   @@unique([doctorId, date, startTime])
   @@index([doctorId, date])
@@ -160,19 +169,21 @@ model Turno {
 /// US-64: persona a cuyo nombre un usuario reservó un turno, con su cobertura.
 /// Queda guardada para elegirla en reservas posteriores sin reingresar sus datos.
 model PersonaAtendida {
-  id                    String   @id @default(cuid())
+  id                    String            @id @default(cuid())
   userId                String
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   firstName             String
   lastName              String
   docNumber             String
-  birthDate             DateTime @db.Date
+  birthDate             DateTime          @db.Date
   healthInsuranceEntity String
   healthInsurancePlan   String
   healthInsuranceNumber String
   turnos                Turno[]
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  turnosVacunacion      TurnoVacunacion[]
+  aplicaciones          AplicacionDosis[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   @@unique([userId, docNumber])
 }
@@ -214,23 +225,22 @@ model TurnoEstadoAuditLog {
   @@index([changedAt])
 }
 
-
 /// Parámetros que el administrador ajusta sin tocar el código. Fila única (id = 1).
 model Configuracion {
-  id                Int      @id @default(1)
+  id                          Int      @id @default(1)
   // US-06 / RN-02: límites de jornadas por semana
-  minJornadasSemana Int      @default(2)
-  maxJornadasSemana Int      @default(7)
+  minJornadasSemana           Int      @default(2)
+  maxJornadasSemana           Int      @default(7)
   // US-14: dirección de la sala que se informa en el email de confirmación de turno.
-  salaDireccion     String?
+  salaDireccion               String?
   // US-15: antelación del recordatorio de turno, en horas (inicial 24).
-  recordatorioAntelacionHoras Int @default(24)
+  recordatorioAntelacionHoras Int      @default(24)
   // US-21: envíos fallidos que puede acumular un mismo destinatario antes de
   // que el servicio deje de reintentarle (pantalla "Emails", valor inicial 3).
-  maxEnviosFallidosPorUsuario Int @default(3)
+  maxEnviosFallidosPorUsuario Int      @default(3)
   // US-16: antelación mínima para que el paciente cancele un turno, en horas (inicial 24).
-  cancelacionAntelacionHoras  Int @default(24)
-  updatedAt         DateTime @updatedAt
+  cancelacionAntelacionHoras  Int      @default(24)
+  updatedAt                   DateTime @updatedAt
 }
 
 /// US-21: cuerpo editable de una plantilla de email (wireframe
@@ -256,6 +266,11 @@ model Vacuna {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  /// Esquema estructurado (RF-VAC-06, RF-VAC-08). `esquemaDosis` queda como texto descriptivo.
+  dosis            VacunaDosis[]
+  turnosVacunacion TurnoVacunacion[]
+  aplicaciones     AplicacionDosis[]
 
   @@index([isActive, denominacion])
 }
@@ -306,17 +321,17 @@ enum EstadoPago {
 /// parcial creado en la migración (Pago_turnoId_activo_key); Prisma no puede
 /// declararlo acá.
 model Pago {
-  id                         String     @id @default(cuid())
-  turnoId                    String
-  turno                      Turno      @relation(fields: [turnoId], references: [id], onDelete: Restrict)
-  estado                     EstadoPago @default(ACTIVO)
-  medio                      MedioPago
+  id         String     @id @default(cuid())
+  turnoId    String
+  turno      Turno      @relation(fields: [turnoId], references: [id], onDelete: Restrict)
+  estado     EstadoPago @default(ACTIVO)
+  medio      MedioPago
   /// Referencia de la operación (solo transferencia).
-  referencia                 String?
+  referencia String?
 
   // Importe aplicado (US-34), en centavos.
   precioSinCoberturaCentavos Int
-  precioVigenteDesde         DateTime   @db.Date
+  precioVigenteDesde         DateTime @db.Date
   /// Entidad de la obra social aplicada; nulo = paciente particular.
   coberturaEntidad           String?
   descuentoPorcentaje        Int
@@ -325,21 +340,21 @@ model Pago {
 
   // Comprobante (US-36).
   /// Numeración correlativa, sin huecos ni duplicados (ver ComprobanteContador).
-  comprobanteNumero          Int        @unique
-  pacienteNombre             String
-  pacienteDocumento          String?
-  prestacion                 String
-  profesionalNombre          String
+  comprobanteNumero Int     @unique
+  pacienteNombre    String
+  pacienteDocumento String?
+  prestacion        String
+  profesionalNombre String
 
-  registradoPorId            String
-  registradoPor              User       @relation("PagoRegistradoPor", fields: [registradoPorId], references: [id], onDelete: Restrict)
-  registradoPorNombre        String
-  createdAt                  DateTime   @default(now())
+  registradoPorId     String
+  registradoPor       User     @relation("PagoRegistradoPor", fields: [registradoPorId], references: [id], onDelete: Restrict)
+  registradoPorNombre String
+  createdAt           DateTime @default(now())
 
   // Anulación (US-61, fuera de alcance de este sprint): el reporte de pagos (US-47)
   // ya distingue los anulados.
-  anuladoAt                  DateTime?
-  anuladoMotivo              String?
+  anuladoAt     DateTime?
+  anuladoMotivo String?
 
   @@index([createdAt])
   @@index([turnoId])
@@ -379,3 +394,130 @@ model EmailAuditLog {
   @@index([createdAt])
 }
 
+/// US-24 (ampliación) / US-29 / US-57: dosis estructuradas del esquema de una vacuna.
+/// Permite elegir la dosis al aplicarla, evaluar si el esquema quedó incompleto y
+/// calcular desde cuándo corresponde la siguiente. `diasDesdeAnterior` es nulo en la
+/// primera dosis; en las demás es el intervalo mínimo respecto de la dosis previa.
+model VacunaDosis {
+  id                String @id @default(cuid())
+  vacunaId          String
+  vacuna            Vacuna @relation(fields: [vacunaId], references: [id], onDelete: Cascade)
+  orden             Int
+  etiqueta          String
+  diasDesdeAnterior Int?
+
+  @@unique([vacunaId, orden])
+}
+
+/// US-63 (RF-VAC-09, RN-08): franja de atención del vacunatorio. La agenda es única y
+/// compartida por las enfermeras (sin dueño individual) e independiente de las agendas
+/// médicas. Varias franjas por día, sin solaparse. No aplica la regla de 2 a 7 jornadas.
+model JornadaVacunatorio {
+  id          String            @id @default(cuid())
+  date        DateTime          @db.Date
+  startTime   String
+  endTime     String
+  createdById String
+  createdBy   User              @relation("JornadaVacunatorioCreador", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime          @default(now())
+  turnos      TurnoVacunacion[]
+
+  @@index([date])
+}
+
+/// US-63 / US-28: turno de 30 minutos de la agenda del vacunatorio. Un turno por horario.
+model TurnoVacunacion {
+  id        String              @id @default(cuid())
+  jornadaId String?
+  jornada   JornadaVacunatorio? @relation(fields: [jornadaId], references: [id], onDelete: SetNull)
+  date      DateTime            @db.Date
+  startTime String
+  endTime   String
+  duration  Int                 @default(30)
+  status    EstadoTurno         @default(DISPONIBLE)
+
+  vacunaId           String?
+  vacuna             Vacuna?          @relation(fields: [vacunaId], references: [id], onDelete: Restrict)
+  /// Dosis que se prevé aplicar (informativa; la real se fija en US-29).
+  dosisPrevistaOrden Int?
+  /// Titular: usuario registrado que recibe los emails.
+  reservedById       String?
+  reservedBy         User?            @relation("TurnoVacunacionTitular", fields: [reservedById], references: [id], onDelete: SetNull)
+  /// Empleado de mostrador que otorgó el turno (nulo si lo sacó el propio usuario).
+  otorgadoPorId      String?
+  otorgadoPor        User?            @relation("TurnoVacunacionOtorgadoPor", fields: [otorgadoPorId], references: [id], onDelete: SetNull)
+  personaAtendidaId  String?
+  personaAtendida    PersonaAtendida? @relation(fields: [personaAtendidaId], references: [id], onDelete: SetNull)
+  patientFirstName   String?
+  patientLastName    String?
+  reservedAt         DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  aplicaciones  AplicacionDosis[]
+  cancelaciones TurnoVacunacionCancelacion[]
+
+  @@unique([date, startTime])
+  @@index([status, date])
+  @@index([reservedById])
+}
+
+/// Constancia de un turno de vacunación cancelado (no se elimina). Análoga a TurnoCancelacion.
+model TurnoVacunacionCancelacion {
+  id               String           @id @default(cuid())
+  turnoId          String?
+  turno            TurnoVacunacion? @relation(fields: [turnoId], references: [id], onDelete: SetNull)
+  reservedById     String
+  reservedBy       User             @relation("VacunacionCancelaciones", fields: [reservedById], references: [id], onDelete: Cascade)
+  vacunaNombre     String?
+  date             DateTime         @db.Date
+  startTime        String
+  endTime          String
+  patientFirstName String?
+  patientLastName  String?
+  canceladoPorId   String?
+  cancelledAt      DateTime         @default(now())
+
+  @@index([reservedById])
+}
+
+enum EstadoAplicacion {
+  ACTIVA
+  ANULADA
+}
+
+/// US-29 (RF-VAC-06, RNF-04): registro sanitario de una dosis aplicada. Inmutable: nunca
+/// se elimina; una corrección es una anulación con motivo. Referencia exactamente uno de
+/// `pacienteUserId` / `personaAtendidaId` (CHECK en la migración). Los índices únicos
+/// parciales (migración) impiden dos aplicaciones ACTIVAS de la misma dosis a la misma
+/// persona y dos activas para el mismo turno.
+model AplicacionDosis {
+  id                String           @id @default(cuid())
+  pacienteUserId    String?
+  pacienteUser      User?            @relation("AplicacionPacienteUser", fields: [pacienteUserId], references: [id], onDelete: Restrict)
+  personaAtendidaId String?
+  personaAtendida   PersonaAtendida? @relation(fields: [personaAtendidaId], references: [id], onDelete: Restrict)
+  pacienteNombre    String
+  pacienteDocumento String?
+  vacunaId          String
+  vacuna            Vacuna           @relation(fields: [vacunaId], references: [id], onDelete: Restrict)
+  vacunaNombre      String
+  dosisOrden        Int
+  dosisEtiqueta     String
+  aplicadaAt        DateTime         @default(now())
+  enfermeraId       String
+  enfermera         User             @relation("AplicacionEnfermera", fields: [enfermeraId], references: [id], onDelete: Restrict)
+  enfermeraNombre   String
+  turnoVacunacionId String?
+  turnoVacunacion   TurnoVacunacion? @relation(fields: [turnoVacunacionId], references: [id], onDelete: SetNull)
+  estado            EstadoAplicacion @default(ACTIVA)
+  anuladaAt         DateTime?
+  anuladaMotivo     String?
+  anuladaPorId      String?
+  anuladaPorNombre  String?
+  createdAt         DateTime         @default(now())
+
+  @@index([pacienteUserId, vacunaId])
+  @@index([personaAtendidaId, vacunaId])
+  @@index([aplicadaAt])
+}

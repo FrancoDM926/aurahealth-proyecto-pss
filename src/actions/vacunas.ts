@@ -6,7 +6,11 @@ import { assertRoles } from "@/lib/auth-session";
 import {
   MENSAJE_VACUNA_DUPLICADA,
   buscarDuplicadaActiva,
+  dosisPorDefecto,
+  validarEsquemaDosis,
   validarVacuna,
+  type DosisInput,
+  type EsquemaErrores,
   type VacunaErrores,
   type VacunaInput,
 } from "@/lib/vacunas";
@@ -17,12 +21,15 @@ export type VacunaItem = {
   laboratorio: string;
   esquemaDosis: string;
   isActive: boolean;
+  /** Dosis estructuradas del esquema (US-29 / US-57), ordenadas. */
+  dosis: { orden: number; etiqueta: string; diasDesdeAnterior: number | null }[];
 };
 
 export type VacunaActionResult = {
   success: boolean;
   message?: string;
   errors?: VacunaErrores;
+  esquemaErrors?: EsquemaErrores;
 };
 
 const SOLO_ENFERMERIA = "Solo el personal de enfermería administra el catálogo de vacunas.";
@@ -33,6 +40,10 @@ const SELECT_VACUNA = {
   laboratorio: true,
   esquemaDosis: true,
   isActive: true,
+  dosis: {
+    orderBy: { orden: "asc" as const },
+    select: { orden: true, etiqueta: true, diasDesdeAnterior: true },
+  },
 } as const;
 
 function revalidarCatalogo() {
@@ -82,7 +93,10 @@ export async function listarVacunasActivas(): Promise<VacunaItem[]> {
   });
 }
 
-export async function crearVacuna(input: VacunaInput): Promise<VacunaActionResult> {
+export async function crearVacuna(
+  input: VacunaInput,
+  dosisInput?: DosisInput[]
+): Promise<VacunaActionResult> {
   try {
     await assertRoles(["ENFERMERA"]);
   } catch {
@@ -94,6 +108,14 @@ export async function crearVacuna(input: VacunaInput): Promise<VacunaActionResul
     return { success: false, message: "Revisá los campos señalados.", errors: parsed.errors };
   }
   const { denominacion, laboratorio, esquemaDosis } = parsed.data;
+  const esquema = validarEsquemaDosis(dosisInput ?? dosisPorDefecto());
+  if (!esquema.ok) {
+    return {
+      success: false,
+      message: "Revisá las dosis del esquema.",
+      esquemaErrors: esquema.errors,
+    };
+  }
 
   try {
     if (await catalogoActivoPara(denominacion, laboratorio)) {
@@ -103,7 +125,9 @@ export async function crearVacuna(input: VacunaInput): Promise<VacunaActionResul
         errors: { denominacion: MENSAJE_VACUNA_DUPLICADA },
       };
     }
-    await db.vacuna.create({ data: { denominacion, laboratorio, esquemaDosis } });
+    await db.vacuna.create({
+      data: { denominacion, laboratorio, esquemaDosis, dosis: { create: esquema.dosis } },
+    });
     revalidarCatalogo();
     return { success: true, message: "Vacuna agregada al catálogo." };
   } catch (error) {
@@ -121,7 +145,8 @@ export async function crearVacuna(input: VacunaInput): Promise<VacunaActionResul
 
 export async function modificarVacuna(
   id: string,
-  input: VacunaInput
+  input: VacunaInput,
+  dosisInput?: DosisInput[]
 ): Promise<VacunaActionResult> {
   try {
     await assertRoles(["ENFERMERA"]);
@@ -134,6 +159,14 @@ export async function modificarVacuna(
     return { success: false, message: "Revisá los campos señalados.", errors: parsed.errors };
   }
   const { denominacion, laboratorio, esquemaDosis } = parsed.data;
+  const esquema = dosisInput ? validarEsquemaDosis(dosisInput) : null;
+  if (esquema && !esquema.ok) {
+    return {
+      success: false,
+      message: "Revisá las dosis del esquema.",
+      esquemaErrors: esquema.errors,
+    };
+  }
 
   try {
     const actual = await db.vacuna.findUnique({ where: { id }, select: SELECT_VACUNA });
@@ -152,7 +185,17 @@ export async function modificarVacuna(
       }
     }
 
-    await db.vacuna.update({ where: { id }, data: { denominacion, laboratorio, esquemaDosis } });
+    // Las dosis aplicadas guardan copia de orden y nombre (US-29): reemplazar el
+    // esquema no altera los registros históricos.
+    await db.$transaction(async (tx) => {
+      await tx.vacuna.update({ where: { id }, data: { denominacion, laboratorio, esquemaDosis } });
+      if (esquema?.ok) {
+        await tx.vacunaDosis.deleteMany({ where: { vacunaId: id } });
+        await tx.vacunaDosis.createMany({
+          data: esquema.dosis.map((d) => ({ ...d, vacunaId: id })),
+        });
+      }
+    });
     revalidarCatalogo();
     return { success: true, message: "Vacuna actualizada." };
   } catch (error) {
