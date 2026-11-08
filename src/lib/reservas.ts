@@ -159,6 +159,8 @@ export type MiTurno = {
   fecha: string;
   startTime: string;
   doctorNombre: string;
+  /** US-28: los turnos de vacunación comparten el listado; por defecto es un turno médico. */
+  tipo?: "MEDICO" | "VACUNACION";
   aNombreDe: string;
   estado: MiTurnoEstado;
   /** Solo los turnos reservados se pueden cancelar. */

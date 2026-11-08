@@ -146,9 +146,23 @@ export function renderConfirmacionTurnoVacunatorio(
         </tr>
         <tr>
           <td class="label">Horario:</td>
-          <td class="value">${params.hora} hs</td>
+          <td class="value">${params.hora} hs (Duración 30 min)</td>
         </tr>
+        <tr>
+          <td class="label">Ubicación:</td>
+          <td class="value">${params.direccion || "Vacunatorio Central AuraHealth"}</td>
+        </tr>
+        ${
+          params.aNombreDe?.trim()
+            ? `<tr><td class="label">A nombre de:</td><td class="value">${params.aNombreDe}</td></tr>`
+            : ""
+        }
       </table>
+    </div>
+
+    <div style="margin-top: 20px; padding: 14px 18px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; color: #475569;">
+      <strong style="display: block; color: #0f172a; margin-bottom: 4px;">¿Necesitás cancelar el turno?</strong>
+      Ingresá a tu cuenta de AuraHealth, abrí la sección <strong>Mis turnos</strong> y elegí <strong>Cancelar</strong> sobre este turno.
     </div>
 
     ${
@@ -179,8 +193,12 @@ Tu turno en el vacunatorio ha sido programado con éxito.
 Detalles:
 - Área: Vacunatorio Central
 ${params.vacunaNombre ? `- Vacuna: ${params.vacunaNombre}\n` : ""}- Fecha: ${params.fecha}
-- Horario: ${params.hora} hs
-${params.indicaciones ? `Indicaciones: ${params.indicaciones}\n` : ""}
+- Horario: ${params.hora} hs (30 minutos)
+- Ubicación: ${params.direccion || "Vacunatorio Central AuraHealth"}
+${params.aNombreDe?.trim() ? `- A nombre de: ${params.aNombreDe}\n` : ""}${params.indicaciones ? `Indicaciones: ${params.indicaciones}\n` : ""}
+¿Necesitás cancelar el turno?
+Ingresá a tu cuenta de AuraHealth, abrí la sección "Mis turnos" y elegí "Cancelar" sobre este turno.
+
 Por favor presentate con tu carnet de vacunación y DNI.
   `.trim();
 

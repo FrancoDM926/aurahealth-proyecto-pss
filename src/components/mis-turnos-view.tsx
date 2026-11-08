@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cancelarTurnoAction } from "@/actions/reservas";
+import { cancelarTurnoVacunacionAction } from "@/actions/turnos-vacunacion";
 import { formatearFechaAr } from "@/lib/busqueda-turnos";
 import { ESTADO_TURNO_LABELS } from "@/lib/estado-turno";
 import type { MiTurno } from "@/lib/reservas";
@@ -54,7 +55,10 @@ export function MisTurnosView({
   const confirmarCancelacion = async (turno: MiTurno) => {
     setLoading(true);
     setError(null);
-    const result = await cancelarTurnoAction(turno.id);
+    const result =
+      turno.tipo === "VACUNACION"
+        ? await cancelarTurnoVacunacionAction(turno.id)
+        : await cancelarTurnoAction(turno.id);
     setLoading(false);
     if (result.success) {
       setAviso({ tipo: "cancelado" });
@@ -94,8 +98,8 @@ export function MisTurnosView({
         <section className="mt-6 rounded-xl border-2 border-primary bg-surface p-4 sm:p-6" aria-live="polite">
           <h2 className="text-lg font-bold text-ink">¿Confirmás la cancelación?</h2>
           <p className="mt-2 text-sm text-ink">
-            Turno del {formatearFechaAr(aviso.turno.fecha)} a las {aviso.turno.startTime} con{" "}
-            {aviso.turno.doctorNombre}.
+            Turno del {formatearFechaAr(aviso.turno.fecha)} a las {aviso.turno.startTime}{" "}
+            {aviso.turno.tipo === "VACUNACION" ? aviso.turno.doctorNombre : `con ${aviso.turno.doctorNombre}`}.
           </p>
           <p className="mt-1 text-sm text-ink-secondary">
             Si cancelás, el horario vuelve a estar disponible y puede reservarlo otro paciente.

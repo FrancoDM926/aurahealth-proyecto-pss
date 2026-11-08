@@ -4,6 +4,8 @@ import { requireRoles } from "@/lib/auth-session";
 import { db } from "@/lib/db";
 import { getCancelacionAntelacion } from "@/lib/configuracion";
 import { estaEnPlazoDeCancelacion, ordenarMisTurnos, type MiTurno } from "@/lib/reservas";
+import { fechaUtcString } from "@/lib/fecha-utc";
+import { descripcionTurnoVacunacion } from "@/lib/turnos-vacunacion";
 
 export const metadata = {
   title: "Mis turnos | AuraHealth",
@@ -19,7 +21,7 @@ export const dynamic = "force-dynamic";
 export default async function MisTurnosPage() {
   const { role, profile } = await requireRoles(["USUARIO"]);
 
-  const [turnos, cancelaciones, antelacion] = await Promise.all([
+  const [turnos, cancelaciones, antelacion, turnosVac, cancelacionesVac] = await Promise.all([
     db.turno.findMany({
       where: {
         reservedById: profile.id,
@@ -29,6 +31,12 @@ export default async function MisTurnosPage() {
     }),
     db.turnoCancelacion.findMany({ where: { reservedById: profile.id } }),
     getCancelacionAntelacion(),
+    // US-28: turnos de vacunación del usuario (propios o a nombre de otra persona).
+    db.turnoVacunacion.findMany({
+      where: { reservedById: profile.id, status: { in: ["RESERVADO", "CUMPLIDO", "AUSENTE"] } },
+      include: { vacuna: { select: { denominacion: true, laboratorio: true } } },
+    }),
+    db.turnoVacunacionCancelacion.findMany({ where: { reservedById: profile.id } }),
   ]);
 
   const titular = `${profile.firstName} ${profile.lastName}`;
@@ -56,6 +64,35 @@ export default async function MisTurnosPage() {
         fecha: c.date.toISOString().slice(0, 10),
         startTime: c.startTime,
         doctorNombre: c.doctorNombre,
+        aNombreDe: aNombreDe(c.patientFirstName, c.patientLastName),
+        estado: "CANCELADO",
+        cancelable: false,
+        fueraDePlazo: false,
+      })
+    ),
+    ...turnosVac.map((t): MiTurno => {
+      const reservado = t.status === "RESERVADO";
+      return {
+        id: t.id,
+        fecha: fechaUtcString(t.date),
+        startTime: t.startTime,
+        doctorNombre: descripcionTurnoVacunacion(
+          t.vacuna ? `${t.vacuna.denominacion} — ${t.vacuna.laboratorio}` : null
+        ),
+        tipo: "VACUNACION",
+        aNombreDe: aNombreDe(t.patientFirstName, t.patientLastName),
+        estado: t.status as MiTurno["estado"],
+        cancelable: reservado,
+        fueraDePlazo: reservado && !estaEnPlazoDeCancelacion(t, ahora, antelacion),
+      };
+    }),
+    ...cancelacionesVac.map(
+      (c): MiTurno => ({
+        id: c.id,
+        fecha: fechaUtcString(c.date),
+        startTime: c.startTime,
+        doctorNombre: descripcionTurnoVacunacion(c.vacunaNombre),
+        tipo: "VACUNACION",
         aNombreDe: aNombreDe(c.patientFirstName, c.patientLastName),
         estado: "CANCELADO",
         cancelable: false,

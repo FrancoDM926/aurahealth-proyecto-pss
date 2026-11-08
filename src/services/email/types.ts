@@ -44,6 +44,10 @@ export interface ConfirmacionTurnoVacunatorioParams {
   fecha: string;
   hora: string;
   indicaciones?: string;
+  /** US-28: dirección de la sala. */
+  direccion?: string;
+  /** US-28 / US-64: persona atendida cuando el turno es a nombre de otra persona. */
+  aNombreDe?: string;
 }
 
 export interface CancelacionTurnoVacunatorioParams {
@@ -52,6 +56,8 @@ export interface CancelacionTurnoVacunatorioParams {
   fecha: string;
   hora: string;
   motivo?: string;
+  /** US-28 / US-64: persona atendida cuando el turno era a nombre de otra persona. */
+  aNombreDe?: string;
 }
 
 export interface RecordatorioTurnoParams {
