@@ -138,3 +138,27 @@ US-39 quedó como contrato canónico: `FichaDiagnostico` (`doctorId`, `patientKe
   verla en `/dashboard/historial` y `/dashboard/mi-historial`, adjuntar y descargar).
 - Si se despliega en Vercel, revisar el límite de 4.5 MB del body de las funciones
   serverless frente al máximo configurable de 10 MB.
+
+---
+
+# US-44 — Auditoría de accesos al historial clínico — COMPLETADA
+
+Objetivo: implementar US-44 según `wireframes aurahealth/wf_auditoria_accesos.html` y
+`ctxt/03-user-stories.md`. Vista de solo lectura, accesible únicamente al
+ADMINISTRADOR, con filtros por usuario, paciente (apellido o documento), rango de
+fechas, tipo de acceso y resultado. Incluye los accesos exitosos y los intentos
+rechazados que ya registran US-40, US-41 y US-62.
+
+## M1: Lógica y consulta — status: completed
+- [x] S1.1.1: `src/lib/auditoria-historial.ts` — normalización de filtros, validación de fechas, rango UTC−3, etiquetas y tope de 500 filas
+- [x] S1.1.2: `src/services/historial/auditoria-consultas.ts` — lectura de `AccesoHistorialLog`, opciones de usuario y búsqueda de paciente por nombre o documento (`patientKey`)
+- [x] S1.1.3: etiquetas centralizadas en la lógica pura y re-exportadas desde `src/services/historial/auditoria.ts`
+
+## M2: Pantalla y navegación — status: completed
+- [x] S2.1.1: `/dashboard/admin/auditoria` con los bloques «1 · Filtros» y «2 · Registro», tabla, hint y callout del wireframe
+- [x] S2.1.2: enlace «Auditoría» solo para ADMINISTRADOR en `src/components/dashboard-shell.tsx`
+
+## M3: Pruebas y verificación — status: completed
+- [x] S3.1.1: `tests/us44-auditoria-historial.test.ts` — 10 pruebas de filtros, fechas, etiquetas y tope
+- [x] S3.1.2: `npx tsc --noEmit` sin errores · `npm test` 312/312 verdes · `npm run lint` solo los 8 problemas preexistentes · `npm run build` exitoso con `/dashboard/admin/auditoria`
+- [x] S3.1.3: consultas verificadas contra Neon: 11 accesos reales, filtros por usuario, tipo, rango de fechas, paciente y combinaciones

@@ -53,13 +53,9 @@ export async function registrarAccesoHistorial(input: AccesoHistorialInput): Pro
   }
 }
 
-export const TIPO_ACCESO_HISTORIAL_LABELS: Record<TipoAccesoHistorial, string> = {
-  FICHA_CONSOLIDADA: "Ficha del paciente",
-  HISTORIAL_PACIENTE: "Historial clínico",
-  ESTUDIOS: "Estudios de la ficha",
-};
-
-export const RESULTADO_ACCESO_LABELS: Record<ResultadoAccesoHistorial, string> = {
-  EXITOSO: "Exitoso",
-  RECHAZADO: "Rechazado",
-};
+// Las etiquetas viven en la lógica pura de US-44 para que la vista y las
+// pruebas no dependan del módulo de escritura (que importa la base de datos).
+export {
+  RESULTADO_ACCESO_LABELS,
+  TIPO_ACCESO_HISTORIAL_LABELS,
+} from "@/lib/auditoria-historial";

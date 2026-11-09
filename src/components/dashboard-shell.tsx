@@ -27,7 +27,8 @@ type NavKey =
   | "mi-historial"
   | "pagos"
   | "comprobantes"
-  | "reportes";
+  | "reportes"
+  | "auditoria";
 
 type DashboardShellProps = {
   userName: string;
@@ -72,6 +73,7 @@ export function DashboardShell({
     { key: "configuracion", href: "/dashboard/admin/configuracion", label: "Configuración", roles: ["ADMINISTRADOR"] },
     { key: "emails", href: "/dashboard/admin/emails", label: "Emails", roles: ["ADMINISTRADOR"] },
     { key: "reportes", href: "/dashboard/admin/reportes/pagos", label: "Reportes", roles: ["ADMINISTRADOR"] },
+    { key: "auditoria", href: "/dashboard/admin/auditoria", label: "Auditoría", roles: ["ADMINISTRADOR"] },
     { key: "mis-datos", href: "/dashboard/mis-datos", label: "Mi cuenta", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },
   ];
 
