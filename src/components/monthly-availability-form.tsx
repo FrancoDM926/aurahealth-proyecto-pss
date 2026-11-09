@@ -120,9 +120,10 @@ export function MonthlyAvailabilityForm({
         Object.values(jornadas).map((j) => ({ date: j.date })),
         year,
         month,
-        limites
+        limites,
+        today
       ),
-    [jornadas, year, month, limites]
+    [jornadas, year, month, limites, today]
   );
 
   const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
@@ -225,7 +226,7 @@ export function MonthlyAvailabilityForm({
             </label>
             <select
               id="month"
-              className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+              className="w-full cursor-pointer rounded-lg border border-line bg-background px-3 py-2 text-sm transition hover:border-primary/50"
               value={period}
               onChange={(e) => handlePeriodChange(e.target.value)}
             >
@@ -272,12 +273,12 @@ export function MonthlyAvailabilityForm({
                 disabled={past}
                 title={past ? "Fecha pasada: no se pueden cargar franjas" : undefined}
                 onClick={() => openDayEditor(day)}
-                className={`min-h-14 rounded-lg border p-1 transition ${
+                className={`min-h-14 cursor-pointer rounded-lg border p-1 transition ${
                   dayErrors[key]
-                    ? "border-error bg-error/5 text-error"
+                    ? "border-error bg-error/5 text-error enabled:hover:border-error enabled:hover:bg-error/10"
                     : selected
-                      ? "border-primary bg-primary-light text-primary"
-                      : "border-line bg-background hover:border-primary/50"
+                      ? "border-primary bg-primary-light text-primary enabled:hover:border-primary-dark enabled:hover:bg-primary/15"
+                      : "border-line bg-background enabled:hover:border-primary/50"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 <span className="font-semibold">{day}</span>
@@ -303,7 +304,7 @@ export function MonthlyAvailabilityForm({
                 </label>
                 <select
                   id="franja-desde"
-                  className="mt-1 block rounded-lg border border-line bg-surface px-2 py-1 text-sm"
+                  className="mt-1 block cursor-pointer rounded-lg border border-line bg-surface px-2 py-1 text-sm transition hover:border-primary/50"
                   value={draftStart}
                   onChange={(e) => handleStartChange(e.target.value)}
                 >
@@ -321,7 +322,7 @@ export function MonthlyAvailabilityForm({
                 {/* Solo horarios posteriores al inicio: una franja "al revés" no se puede elegir. */}
                 <select
                   id="franja-hasta"
-                  className="mt-1 block rounded-lg border border-line bg-surface px-2 py-1 text-sm"
+                  className="mt-1 block cursor-pointer rounded-lg border border-line bg-surface px-2 py-1 text-sm transition hover:border-primary/50"
                   value={draftEnd}
                   onChange={(e) => setDraftEnd(e.target.value)}
                 >
@@ -335,14 +336,14 @@ export function MonthlyAvailabilityForm({
               <button
                 type="button"
                 onClick={applyDayEditor}
-                className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white"
+                className="cursor-pointer rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
               >
                 Aplicar
               </button>
               <button
                 type="button"
                 onClick={() => removeDay(editingDay)}
-                className="rounded-lg border border-line px-3 py-2 text-sm"
+                className="cursor-pointer rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink transition hover:border-primary/50 hover:bg-background"
               >
                 Quitar día
               </button>
@@ -355,9 +356,10 @@ export function MonthlyAvailabilityForm({
           <strong>
             entre {limites.min} y {limites.max} jornadas
           </strong>
-          . Se evalúan solo las semanas con al menos tres días hábiles dentro del mes. El
-          contador por semana es visible mientras se carga. Los días que ya pasaron no se
-          pueden cargar.
+          . Se evalúan solo las semanas con al menos tres días hábiles disponibles dentro del
+          mes (no se tienen en cuenta las semanas que ya pasaron o en las que quedan 2 días o
+          menos). El contador por semana es visible mientras se carga. Los días que ya pasaron
+          no se pueden cargar.
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -402,14 +404,14 @@ export function MonthlyAvailabilityForm({
             type="button"
             disabled={loading || !rn02.isValid || Object.keys(jornadas).length === 0}
             onClick={handleSave}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+            className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Guardando…" : "Guardar disponibilidad"}
           </button>
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className="rounded-lg border border-line px-4 py-2 text-sm font-medium"
+            className="cursor-pointer rounded-lg border border-line bg-background px-4 py-2 text-sm font-medium text-ink transition hover:border-primary/50 hover:bg-line/40"
           >
             Cancelar
           </button>

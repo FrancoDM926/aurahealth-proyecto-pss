@@ -74,6 +74,12 @@ export default async function ReportePagosPage({ searchParams }: PageProps) {
         {/* Pestañas de reportes */}
         <div className="mt-4 flex gap-4 border-b border-line text-sm">
           <Link
+            href="/dashboard/admin/reportes"
+            className="pb-2 font-medium text-ink-secondary transition hover:text-ink"
+          >
+            Turnos por especialidad
+          </Link>
+          <Link
             href="/dashboard/admin/reportes/pagos"
             className="border-b-2 border-primary pb-2 font-bold text-primary"
           >
@@ -87,7 +93,7 @@ export default async function ReportePagosPage({ searchParams }: PageProps) {
           </Link>
         </div>
 
-        <p className="mt-1 text-sm text-ink-secondary">
+        <p className="mt-2 text-sm text-ink-secondary">
           Importes por período, medio de pago y obra social.
         </p>
 

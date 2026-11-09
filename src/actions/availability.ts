@@ -197,7 +197,8 @@ export async function saveMonthlyAvailability(
     jornadas.map((j) => ({ date: j.date })),
     year,
     month,
-    limites
+    limites,
+    todayInArgentina()
   );
 
   if (!rn02.isValid) {
@@ -280,5 +281,11 @@ export async function computeWeekValidations(
   month: number,
   jornadas: JornadaInput[]
 ) {
-  return validateMonthlyJornadasRN02(jornadas, year, month, await getLimitesJornadas());
+  return validateMonthlyJornadasRN02(
+    jornadas,
+    year,
+    month,
+    await getLimitesJornadas(),
+    todayInArgentina()
+  );
 }

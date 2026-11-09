@@ -9,7 +9,8 @@ export type NotificationTemplateType =
   | "CANCELACION_TURNO_VACUNATORIO"
   | "RECORDATORIO_TURNO"
   | "BIENVENIDA_REGISTRO"
-  | "ALTA_USUARIO_INTERNO";
+  | "ALTA_USUARIO_INTERNO"
+  | "AVISO_BLOQUEO_AGENDA";
 
 export interface ConfirmacionTurnoMedicoParams {
   pacienteNombre: string;
@@ -82,6 +83,25 @@ export interface AltaUsuarioInternoParams {
   loginUrl?: string;
 }
 
+export interface AvisoBloqueoAgendaParams {
+  pacienteNombre: string;
+  doctorNombre: string;
+  especialidad?: string;
+  /** Fecha o rango bloqueado formateado, ej. "24/11/2026" */
+  fechaFranjaTexto: string;
+  /** Hora desde del bloqueo, ej. "14:00" */
+  desde: string;
+  /** Hora hasta del bloqueo, ej. "17:00" */
+  hasta: string;
+  /** Fecha del turno del paciente, ej. "24/11/2026" */
+  fechaTurno: string;
+  /** Fecha corta DD/MM para el asunto, ej. "24/11" */
+  fechaTurnoCorta?: string;
+  /** Hora del turno del paciente, ej. "14:00" */
+  horaTurno: string;
+  motivo?: string;
+}
+
 export interface NotificationTemplateParamsMap {
   CONFIRMACION_TURNO_MEDICO: ConfirmacionTurnoMedicoParams;
   CANCELACION_TURNO_MEDICO: CancelacionTurnoMedicoParams;
@@ -90,7 +110,10 @@ export interface NotificationTemplateParamsMap {
   RECORDATORIO_TURNO: RecordatorioTurnoParams;
   BIENVENIDA_REGISTRO: BienvenidaRegistroParams;
   ALTA_USUARIO_INTERNO: AltaUsuarioInternoParams;
+  AVISO_BLOQUEO_AGENDA: AvisoBloqueoAgendaParams;
 }
+
+export type TemplatePayloadMap = NotificationTemplateParamsMap;
 
 export interface RenderedEmail {
   subject: string;

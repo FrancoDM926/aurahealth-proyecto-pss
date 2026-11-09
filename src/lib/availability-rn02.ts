@@ -1,7 +1,8 @@
 /**
  * RN-02: entre un mínimo y un máximo de jornadas por semana (lun–dom), solo en
- * semanas con ≥3 días hábiles (lun–vie) dentro del mes. Los límites los
- * configura el administrador (US-06); 2 y 7 son los valores iniciales.
+ * semanas con ≥3 días hábiles (lun–vie) disponibles dentro del mes (no se tienen
+ * en cuenta las semanas que ya pasaron o en las que quedan 2 días o menos).
+ * Los límites los configura el administrador (US-06); 2 y 7 son los valores iniciales.
  */
 
 export type JornadaInput = {
@@ -59,12 +60,17 @@ function weekKey(monday: Date): string {
 function businessDaysInMonthForWeek(
   monday: Date,
   year: number,
-  month: number
+  month: number,
+  today?: string
 ): number {
   let count = 0;
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setUTCDate(monday.getUTCDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    if (today && isPastDate(iso, today)) {
+      continue;
+    }
     if (d.getUTCFullYear() === year && d.getUTCMonth() + 1 === month && isBusinessDay(d)) {
       count++;
     }
@@ -84,7 +90,8 @@ export function validateMonthlyJornadasRN02(
   jornadas: JornadaInput[],
   year: number,
   month: number,
-  limites: LimitesJornadas = LIMITES_JORNADAS_DEFAULT
+  limites: LimitesJornadas = LIMITES_JORNADAS_DEFAULT,
+  today?: string
 ): { weeks: WeekValidation[]; isValid: boolean; blockingMessages: string[] } {
   const jornadaDates = jornadas.map((j) => parseDateOnly(j.date));
 
@@ -120,7 +127,7 @@ export function validateMonthlyJornadasRN02(
   );
 
   for (const [, { monday, dates }] of sorted) {
-    const businessDays = businessDaysInMonthForWeek(monday, year, month);
+    const businessDays = businessDaysInMonthForWeek(monday, year, month, today);
     const applies = businessDays >= MIN_BUSINESS_DAYS;
     const jornadaCount = dates.length;
     let valid = true;

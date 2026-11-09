@@ -41,6 +41,8 @@ const ESTADO_CLASES: Record<EstadoTurnoAgenda, string> = {
   CANCELADO: "border-red-300 bg-red-50 text-red-800",
 };
 
+const BLOQUEADO_CLASES = "border-amber-300 bg-amber-50 text-amber-900";
+
 const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }: Props) {
@@ -75,7 +77,7 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
             {/* Como el wireframe: la vista y su período en el mismo selector. */}
             <select
               id="vista"
-              className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+              className="w-full cursor-pointer rounded-lg border border-line bg-background px-3 py-2 text-sm transition hover:border-primary/50"
               value={vista}
               onChange={(e) => ir(e.target.value as VistaAgenda, fecha)}
             >
@@ -93,7 +95,7 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
             </label>
             <select
               id="mostrar"
-              className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm"
+              className="w-full cursor-pointer rounded-lg border border-line bg-background px-3 py-2 text-sm transition hover:border-primary/50"
               value={filtro}
               onChange={(e) => setFiltro(e.target.value as FiltroAgenda)}
             >
@@ -128,14 +130,14 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
               type="button"
               aria-label="Período anterior"
               onClick={() => ir(vista, moverPeriodo(vista, fecha, -1))}
-              className="rounded-lg border border-line px-3 py-2 text-sm font-semibold hover:bg-background"
+              className="cursor-pointer rounded-lg border border-line px-3 py-2 text-sm font-semibold transition hover:border-primary/50 hover:bg-background"
             >
               ← Anterior
             </button>
             <button
               type="button"
               onClick={() => ir(vista, hoy)}
-              className="rounded-lg border border-line px-3 py-2 text-sm font-semibold hover:bg-background"
+              className="cursor-pointer rounded-lg border border-line px-3 py-2 text-sm font-semibold transition hover:border-primary/50 hover:bg-background"
             >
               Hoy
             </button>
@@ -143,7 +145,7 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
               type="button"
               aria-label="Período siguiente"
               onClick={() => ir(vista, moverPeriodo(vista, fecha, 1))}
-              className="rounded-lg border border-line px-3 py-2 text-sm font-semibold hover:bg-background"
+              className="cursor-pointer rounded-lg border border-line px-3 py-2 text-sm font-semibold transition hover:border-primary/50 hover:bg-background"
             >
               Siguiente →
             </button>
@@ -171,9 +173,15 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
             href={`/dashboard/disponibilidad?year=${year}&month=${month}`}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+            className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
           >
             Cargar disponibilidad
+          </Link>
+          <Link
+            href={`/dashboard/bloqueo-franja?dia=${fecha}`}
+            className="cursor-pointer rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink transition hover:border-primary/50 hover:bg-background"
+          >
+            Bloquear franja
           </Link>
         </div>
       </section>
@@ -182,28 +190,33 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
 }
 
 function Turno({ turno }: { turno: TurnoAgenda }) {
+  const esBloqueado = turno.status === "DISPONIBLE" && Boolean(turno.bloqueado);
+  const clase = esBloqueado ? BLOQUEADO_CLASES : ESTADO_CLASES[turno.status];
+  const label = esBloqueado ? "Bloqueado" : ESTADO_LABELS[turno.status];
+
   const contenido = (
-    <div className={`rounded-md border px-2 py-1.5 text-xs ${ESTADO_CLASES[turno.status]}`}>
+    <div className={`rounded-md border px-2 py-1.5 text-xs ${clase}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-bold tabular-nums">
           {turno.startTime}–{turno.endTime}
         </span>
-        <span className="font-semibold">{ESTADO_LABELS[turno.status]}</span>
+        <span className="font-semibold">{label}</span>
       </div>
     </div>
   );
 
   if (turno.status === "CUMPLIDO") {
     return (
-      <Link href={`/dashboard/ficha-diagnostico?turnoId=${turno.id}`} className="block rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+      <Link
+        href={`/dashboard/ficha-diagnostico?turnoId=${turno.id}`}
+        className="block rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+      >
         {contenido}
       </Link>
     );
   }
 
-  return (
-    contenido
-  );
+  return contenido;
 }
 
 /** Vista diaria: orden cronológico e identificación de los huecos libres. */
@@ -273,7 +286,7 @@ function VistaSemanal({
                 <button
                   type="button"
                   onClick={() => onDia(d)}
-                  className={`mb-2 text-sm font-semibold ${d === hoy ? "text-primary" : "text-ink"}`}
+                  className={`mb-2 cursor-pointer text-sm font-semibold ${d === hoy ? "text-primary" : "text-ink"}`}
                 >
                   {e.corto} {e.numero}
                 </button>
@@ -307,7 +320,7 @@ function VistaSemanal({
                   type="button"
                   onClick={() => onDia(d)}
                   disabled={!tiene}
-                  className={`w-full text-center text-xs font-semibold enabled:hover:text-primary disabled:cursor-default ${
+                  className={`w-full text-center text-xs font-semibold enabled:cursor-pointer enabled:hover:text-primary disabled:cursor-default ${
                     d === hoy ? "text-primary" : tiene ? "text-ink" : "text-ink-muted"
                   }`}
                 >
@@ -328,13 +341,16 @@ function VistaSemanal({
             </div>
             {dias.map((d) => {
               const t = porDia.get(d)?.find((x) => x.startTime === h);
+              const esBloqueado = t?.status === "DISPONIBLE" && Boolean(t?.bloqueado);
               return (
                 <div key={d} className="min-h-9 border-l border-line p-1">
                   {t && (
                     <div
-                      className={`flex h-full items-center justify-center rounded border px-1 text-xs font-semibold ${ESTADO_CLASES[t.status]}`}
+                      className={`flex h-full items-center justify-center rounded border px-1 text-xs font-semibold ${
+                        esBloqueado ? BLOQUEADO_CLASES : ESTADO_CLASES[t.status]
+                      }`}
                     >
-                      {ESTADO_LABELS[t.status]}
+                      {esBloqueado ? "Bloqueado" : ESTADO_LABELS[t.status]}
                     </div>
                   )}
                 </div>
@@ -393,7 +409,7 @@ function VistaMensual({
                 type="button"
                 disabled={r.total === 0}
                 onClick={() => onDia(d)}
-                className={`flex min-h-16 flex-col items-start justify-start p-1 text-left text-xs disabled:cursor-default sm:min-h-20 sm:p-1.5 ${bordes} ${
+                className={`flex min-h-16 flex-col items-start justify-start p-1 text-left text-xs enabled:cursor-pointer disabled:cursor-default sm:min-h-20 sm:p-1.5 ${bordes} ${
                   d === hoy ? "bg-primary-light" : "bg-surface enabled:hover:bg-background"
                 }`}
               >

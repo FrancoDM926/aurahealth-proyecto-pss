@@ -73,6 +73,11 @@ model User {
   entradasDiagnostico         FichaDiagnosticoEntrada[]    @relation("EntradaDiagnosticoAutor")
   adjuntosSubidos             AdjuntoEstudio[]             @relation("AdjuntoSubidoPor")
   accesosHistorial            AccesoHistorialLog[]         @relation("AccesoHistorialUsuario")
+  // US-30 / US-22 / US-17
+  bloqueosAgenda              BloqueoAgenda[]              @relation("DoctorBloqueos")
+  bloqueosCreados             BloqueoAgenda[]              @relation("BloqueoCreadoPor")
+  operacionesPaciente         MostradorOperacionLog[]      @relation("MostradorPaciente")
+  operacionesMostrador        MostradorOperacionLog[]      @relation("MostradorRealizadoPor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -165,11 +170,17 @@ model Turno {
   pagos                    Pago[]
   fichaDiagnosticoEntradas FichaDiagnosticoEntrada[]
 
+  // US-30 (RF-AGE-06): bloqueo activo sobre un turno libre de una franja publicada.
+  bloqueoId     String?
+  bloqueo       BloqueoAgenda? @relation("TurnosBloqueados", fields: [bloqueoId], references: [id], onDelete: SetNull)
+  avisosBloqueo BloqueoAviso[] @relation("TurnoAvisosBloqueo")
+
   @@unique([doctorId, date, startTime])
   @@index([doctorId, date])
   @@index([status, date])
   @@index([reservedById])
   @@index([recordatorioEstado, date])
+  @@index([bloqueoId])
 }
 
 /// US-39: una ficha por paciente y médico. `patientKey` permite identificar
@@ -633,4 +644,76 @@ model AccesoHistorialLog {
   @@index([createdAt])
   @@index([pacienteKey])
   @@index([usuarioId])
+}
+
+/// US-30 (RF-AGE-06, RF-AGE-09, RN-10): Bloqueo de turnos disponibles de una franja publicada.
+model BloqueoAgenda {
+  id            String         @id @default(cuid())
+  doctorId      String
+  doctor        User           @relation("DoctorBloqueos", fields: [doctorId], references: [id], onDelete: Cascade)
+  date          DateTime       @db.Date
+  dateHasta     DateTime       @db.Date
+  startTime     String         // "HH:mm"
+  endTime       String         // "HH:mm"
+  motivo        String
+  createdById   String
+  createdBy     User           @relation("BloqueoCreadoPor", fields: [createdById], references: [id], onDelete: Restrict)
+  createdByName String
+  createdByRole Role
+  revertedAt    DateTime?
+  revertedById  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  turnosBloqueados Turno[]        @relation("TurnosBloqueados")
+  avisosPacientes  BloqueoAviso[]
+
+  @@index([doctorId, date])
+  @@index([revertedAt])
+  @@index([createdAt])
+}
+
+/// US-22 (RF-NOT-02, RF-AGE-09): Pacientes con turno reservado dentro de una franja bloqueada.
+model BloqueoAviso {
+  id               String        @id @default(cuid())
+  bloqueoId        String
+  bloqueo          BloqueoAgenda @relation(fields: [bloqueoId], references: [id], onDelete: Cascade)
+  turnoId          String
+  turno            Turno         @relation("TurnoAvisosBloqueo", fields: [turnoId], references: [id], onDelete: Cascade)
+  pacienteNombre   String
+  pacienteEmail    String
+  pacienteTelefono String?
+  fechaTurno       DateTime      @db.Date
+  startTime        String
+  endTime          String
+  emailStatus      EmailStatus   @default(PENDING)
+  emailLogId       String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([bloqueoId, turnoId])
+  @@index([bloqueoId])
+  @@index([turnoId])
+}
+
+/// US-17 (RF-TUR-06): Registro auditable de toda operación realizada desde el mostrador.
+model MostradorOperacionLog {
+  id                 String   @id @default(cuid())
+  tipoOperacion      String   // "ALTA_PACIENTE" | "RESERVA" | "REPROGRAMACION" | "CANCELACION" | "ASISTENCIA"
+  tipoTurno          String?  // "MEDICO" | "VACUNACION"
+  pacienteId         String
+  paciente           User     @relation("MostradorPaciente", fields: [pacienteId], references: [id], onDelete: Cascade)
+  pacienteNombre     String
+  turnoId            String?
+  turnoOriginalId    String?
+  detalle            String
+  realizadoPorId     String
+  realizadoPor       User     @relation("MostradorRealizadoPor", fields: [realizadoPorId], references: [id], onDelete: Restrict)
+  realizadoPorNombre String
+  realizadoPorRole   Role
+  createdAt          DateTime @default(now())
+
+  @@index([pacienteId])
+  @@index([realizadoPorId])
+  @@index([createdAt])
 }

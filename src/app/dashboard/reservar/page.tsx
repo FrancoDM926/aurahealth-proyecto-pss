@@ -48,6 +48,7 @@ export default async function ReservarPage({ searchParams }: PageProps) {
   const disponible =
     turno !== null &&
     turno.status === "DISPONIBLE" &&
+    !turno.bloqueoId &&
     turno.doctor.isActive &&
     esTurnoFuturo({ date: fecha, startTime: turno.startTime }, ahoraEnArgentina());
 

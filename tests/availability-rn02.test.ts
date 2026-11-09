@@ -102,4 +102,61 @@ describe("US-06 — límites de jornadas configurables (RN-02)", () => {
     assert.equal(res.isValid, false);
     assert.ok(res.blockingMessages.length >= 3);
   });
+
+  it("no tiene en cuenta las semanas que ya pasaron ni aquellas en las que quedan 2 días o menos", () => {
+    // En noviembre de 2026:
+    // - Semana del 02/11 al 08/11: si hoy es viernes 06/11, sábado 07/11 o lunes 16/11,
+    //   esa primera semana ya pasó o le quedan 2 días o menos (sábado y domingo).
+    // - Si el médico carga al menos 2 jornadas en las semanas restantes (09/11, 16/11, 23/11),
+    //   la disponibilidad es válida sin exigir jornadas en la semana del 02/11.
+    const jornadasNov = [
+      { date: "2026-11-10" },
+      { date: "2026-11-12" },
+      { date: "2026-11-17" },
+      { date: "2026-11-19" },
+      { date: "2026-11-24" },
+      { date: "2026-11-26" },
+    ];
+
+    // Caso 1: hoy es sábado 07/11 (quedan solo sábado y domingo en la primera semana)
+    const enSabado = validateMonthlyJornadasRN02(
+      jornadasNov,
+      2026,
+      11,
+      LIMITES_JORNADAS_DEFAULT,
+      "2026-11-07"
+    );
+    const primeraSemanaSab = enSabado.weeks.find((w) => w.weekKey === "2026-11-02");
+    assert.equal(primeraSemanaSab?.applies, false);
+    assert.equal(primeraSemanaSab?.valid, true);
+    assert.equal(enSabado.isValid, true);
+
+    // Caso 2: hoy es viernes 06/11 (solo queda 1 día hábil y sábado/domingo)
+    const enViernes = validateMonthlyJornadasRN02(
+      jornadasNov,
+      2026,
+      11,
+      LIMITES_JORNADAS_DEFAULT,
+      "2026-11-06"
+    );
+    assert.equal(enViernes.weeks.find((w) => w.weekKey === "2026-11-02")?.applies, false);
+    assert.equal(enViernes.isValid, true);
+
+    // Caso 3: hoy es lunes 16/11 (las semanas del 02/11 y del 09/11 ya pasaron)
+    const enTerceraSemana = validateMonthlyJornadasRN02(
+      [
+        { date: "2026-11-17" },
+        { date: "2026-11-19" },
+        { date: "2026-11-24" },
+        { date: "2026-11-26" },
+      ],
+      2026,
+      11,
+      LIMITES_JORNADAS_DEFAULT,
+      "2026-11-16"
+    );
+    assert.equal(enTerceraSemana.weeks.find((w) => w.weekKey === "2026-11-02")?.applies, false);
+    assert.equal(enTerceraSemana.weeks.find((w) => w.weekKey === "2026-11-09")?.applies, false);
+    assert.equal(enTerceraSemana.isValid, true);
+  });
 });

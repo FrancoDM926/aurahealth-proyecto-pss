@@ -28,7 +28,10 @@ type NavKey =
   | "pagos"
   | "comprobantes"
   | "reportes"
-  | "auditoria";
+  | "auditoria"
+  | "bloqueos"
+  | "mostrador"
+  | "reservar";
 
 type DashboardShellProps = {
   userName: string;
@@ -62,17 +65,19 @@ export function DashboardShell({
     { key: "agenda", href: "/dashboard/agenda", label: "Mi agenda", roles: ["MEDICO"] },
     { key: "disponibilidad", href: "/dashboard/disponibilidad", label: "Disponibilidad", roles: ["MEDICO"] },
     { key: "costo-consulta", href: "/dashboard/costo-consulta", label: "Costo de consulta", roles: ["MEDICO"] },
+    { key: "mostrador", href: "/dashboard/mostrador", label: "Mostrador", roles: ["ADMINISTRATIVO"] },
+    { key: "bloqueos", href: "/dashboard/bloqueos", label: "Bloqueos", roles: ["MEDICO", "ADMINISTRATIVO"] },
     { key: "estado-turnos", href: "/dashboard/estado-turnos", label: "Estado de turnos", roles: ["MEDICO", "ADMINISTRATIVO"] },
     { key: "historial", href: "/dashboard/historial", label: "Historial", roles: ["MEDICO"] },
     { key: "pagos", href: "/dashboard/pagos", label: "Pagos", roles: ["ADMINISTRATIVO"] },
     { key: "catalogo-vacunas", href: "/dashboard/catalogo-vacunas", label: "Catálogo de vacunas", roles: ["ENFERMERA"] },
     { key: "agenda-vacunatorio", href: "/dashboard/agenda-vacunatorio", label: "Agenda del vacunatorio", roles: ["ENFERMERA"] },
-    { key: "mostrador-vacunacion", href: "/dashboard/mostrador/vacunacion", label: "Turnos de vacunación", roles: ["ENFERMERA", "ADMINISTRATIVO"] },
+    { key: "mostrador-vacunacion", href: "/dashboard/mostrador/vacunacion", label: "Turnos de vacunación", roles: ["ENFERMERA"] },
     { key: "dosis-aplicadas", href: "/dashboard/dosis-aplicadas", label: "Dosis aplicadas", roles: ["ENFERMERA"] },
     { key: "usuarios", href: "/dashboard/admin/usuarios", label: "Usuarios", roles: ["ADMINISTRADOR"] },
     { key: "configuracion", href: "/dashboard/admin/configuracion", label: "Configuración", roles: ["ADMINISTRADOR"] },
     { key: "emails", href: "/dashboard/admin/emails", label: "Emails", roles: ["ADMINISTRADOR"] },
-    { key: "reportes", href: "/dashboard/admin/reportes/pagos", label: "Reportes", roles: ["ADMINISTRADOR"] },
+    { key: "reportes", href: "/dashboard/admin/reportes", label: "Reportes", roles: ["ADMINISTRADOR"] },
     { key: "auditoria", href: "/dashboard/admin/auditoria", label: "Auditoría", roles: ["ADMINISTRADOR"] },
     { key: "mis-datos", href: "/dashboard/mis-datos", label: "Mi cuenta", roles: ["USUARIO", "MEDICO", "ENFERMERA", "ADMINISTRATIVO", "ADMINISTRADOR"] },
   ];

@@ -45,7 +45,14 @@ export default async function AgendaProfesionalPage({ searchParams }: PageProps)
       },
     },
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
-    select: { id: true, date: true, startTime: true, endTime: true, status: true },
+    select: {
+      id: true,
+      date: true,
+      startTime: true,
+      endTime: true,
+      status: true,
+      bloqueoId: true,
+    },
   });
 
   const turnos: TurnoAgenda[] = rows.map((t) => ({
@@ -54,6 +61,7 @@ export default async function AgendaProfesionalPage({ searchParams }: PageProps)
     startTime: t.startTime,
     endTime: t.endTime,
     status: t.status,
+    bloqueado: Boolean(t.bloqueoId),
   }));
 
   return (

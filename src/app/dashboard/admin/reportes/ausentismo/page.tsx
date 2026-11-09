@@ -77,6 +77,12 @@ export default async function ReporteAusentismoPage({ searchParams }: PageProps)
         {/* Pestañas de reportes */}
         <div className="mt-4 flex gap-4 border-b border-line text-sm">
           <Link
+            href="/dashboard/admin/reportes"
+            className="pb-2 font-medium text-ink-secondary transition hover:text-ink"
+          >
+            Turnos por especialidad
+          </Link>
+          <Link
             href="/dashboard/admin/reportes/pagos"
             className="pb-2 font-medium text-ink-secondary transition hover:text-ink"
           >

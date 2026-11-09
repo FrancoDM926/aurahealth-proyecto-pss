@@ -117,11 +117,18 @@ export async function reservarTurnoAction(
 
   const turno = await db.turno.findUnique({
     where: { id: turnoId },
-    select: { date: true, startTime: true, status: true, doctor: { select: { isActive: true } } },
+    select: {
+      date: true,
+      startTime: true,
+      status: true,
+      bloqueoId: true,
+      doctor: { select: { isActive: true } },
+    },
   });
   if (
     !turno ||
     turno.status !== "DISPONIBLE" ||
+    turno.bloqueoId !== null ||
     !turno.doctor.isActive ||
     !esTurnoFuturo(
       { date: toUtcDateString(turno.date), startTime: turno.startTime },
@@ -159,7 +166,7 @@ export async function reservarTurnoAction(
       }
 
       const updated = await tx.turno.updateMany({
-        where: { id: turnoId, status: "DISPONIBLE" },
+        where: { id: turnoId, status: "DISPONIBLE", bloqueoId: null },
         data: {
           status: "RESERVADO",
           reservedById: reservador.id,

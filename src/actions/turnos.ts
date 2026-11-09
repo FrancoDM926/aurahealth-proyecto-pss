@@ -26,7 +26,7 @@ import {
 } from "@/lib/busqueda-turnos";
 import { SPECIALTY_LABELS } from "@/lib/roles";
 import { assertRoles } from "@/lib/auth-session";
-import { isPastTime, validateMonthlyJornadasRN02 } from "@/lib/availability-rn02";
+import { isPastTime, todayInArgentina, validateMonthlyJornadasRN02 } from "@/lib/availability-rn02";
 import { getLimitesJornadas } from "@/lib/configuracion";
 import type { User } from "@/generated/prisma/client";
 
@@ -161,7 +161,8 @@ export async function getAgendaGeneradaPreview(params: {
     franjas.map((f) => ({ date: String(f.date) })),
     year,
     month,
-    limites
+    limites,
+    todayInArgentina()
   );
 
   const existentes = await loadTurnosDelMes(profile.id, year, month);
@@ -320,6 +321,7 @@ export type ResultadoBusquedaTurnos = {
 /**
  * US-10: Búsqueda de turnos disponibles para pacientes filtrando por
  * especialidad, profesional y rango de fechas (por defecto próximos 30 días).
+ * Excluye los turnos bloqueados según US-30 (RF-AGE-06).
  */
 export async function buscarTurnosDisponiblesPaciente(
   input: FiltrosBusquedaInput = {}
@@ -367,6 +369,7 @@ export async function buscarTurnosDisponiblesPaciente(
       : db.turno.findMany({
           where: {
             status: "DISPONIBLE",
+            bloqueoId: null,
             date: {
               gte: new Date(`${effectiveDesde}T00:00:00.000Z`),
               lte: new Date(`${filtros.hasta}T00:00:00.000Z`),
@@ -440,6 +443,7 @@ export async function buscarTurnosDisponiblesPaciente(
         specialtyLabel: SPECIALTY_LABELS[specialty],
         agendaConfirmada: isMonthConfirmed,
         doctorActivo: t.doctor.isActive,
+        bloqueado: Boolean(t.bloqueoId),
       };
     });
 

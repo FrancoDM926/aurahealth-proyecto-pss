@@ -1,70 +1,50 @@
 import {
-  NotificationTemplateParamsMap,
   NotificationTemplateType,
   RenderTemplateOptions,
   RenderedEmail,
+  TemplatePayloadMap,
 } from "../types";
-import {
-  renderAltaUsuarioInterno,
-  renderBienvenidaRegistro,
-} from "./bienvenida";
-import {
-  renderCancelacionTurnoMedico,
-  renderCancelacionTurnoVacunatorio,
-} from "./turno-cancelacion";
 import {
   renderConfirmacionTurnoMedico,
   renderConfirmacionTurnoVacunatorio,
 } from "./turno-confirmacion";
+import {
+  renderCancelacionTurnoMedico,
+  renderCancelacionTurnoVacunatorio,
+} from "./turno-cancelacion";
 import { renderRecordatorioTurno } from "./turno-recordatorio";
+import { renderBienvenidaRegistro, renderAltaUsuarioInterno } from "./bienvenida";
+import { renderAvisoBloqueoAgenda } from "./aviso-bloqueo";
 
-type TemplateRenderer<T extends NotificationTemplateType> = (
-  params: NotificationTemplateParamsMap[T],
+type TemplateRenderer<K extends NotificationTemplateType> = (
+  params: TemplatePayloadMap[K],
   opciones?: RenderTemplateOptions
 ) => RenderedEmail;
 
-/**
- * Catálogo centralizado de plantillas (Template Registry).
- * Desacoplado de la lógica de negocio: modificar un diseño o texto no afecta
- * las entidades de turnos, usuarios ni controladores.
- */
 const templateRegistry: {
   [K in NotificationTemplateType]: TemplateRenderer<K>;
 } = {
   CONFIRMACION_TURNO_MEDICO: renderConfirmacionTurnoMedico,
-  CANCELACION_TURNO_MEDICO: renderCancelacionTurnoMedico,
   CONFIRMACION_TURNO_VACUNATORIO: renderConfirmacionTurnoVacunatorio,
+  CANCELACION_TURNO_MEDICO: renderCancelacionTurnoMedico,
   CANCELACION_TURNO_VACUNATORIO: renderCancelacionTurnoVacunatorio,
   RECORDATORIO_TURNO: renderRecordatorioTurno,
-  BIENVENIDA_REGISTRO: renderBienvenidaRegistro,
-  ALTA_USUARIO_INTERNO: renderAltaUsuarioInterno,
+  BIENVENIDA_REGISTRO: (p) => renderBienvenidaRegistro(p),
+  ALTA_USUARIO_INTERNO: (p) => renderAltaUsuarioInterno(p),
+  AVISO_BLOQUEO_AGENDA: (p) => renderAvisoBloqueoAgenda(p),
 };
 
 /**
- * Renderiza la plantilla indicada con sus parámetros fuertemente tipados.
- * `opciones.mensaje` es el cuerpo que cargó el administrador en la pantalla
- * «Emails» (US-21); sin él, rige el mensaje por defecto de la plantilla.
+ * Renderiza una plantilla parametrizada desacoplada de la lógica de negocio (Criterio 2).
  */
 export function renderNotificationTemplate<T extends NotificationTemplateType>(
   template: T,
-  params: NotificationTemplateParamsMap[T],
+  params: TemplatePayloadMap[T],
   opciones?: RenderTemplateOptions
 ): RenderedEmail {
-  const renderer = templateRegistry[template] as TemplateRenderer<T> | undefined;
-
+  const renderer = templateRegistry[template];
   if (!renderer) {
-    throw new Error(`[EmailService] Plantilla desconocida: ${String(template)}`);
+    throw new Error(`Plantilla desconocida: ${String(template)}`);
   }
-
   return renderer(params, opciones);
 }
-
-export {
-  renderAltaUsuarioInterno,
-  renderBienvenidaRegistro,
-  renderCancelacionTurnoMedico,
-  renderCancelacionTurnoVacunatorio,
-  renderConfirmacionTurnoMedico,
-  renderConfirmacionTurnoVacunatorio,
-  renderRecordatorioTurno,
-};

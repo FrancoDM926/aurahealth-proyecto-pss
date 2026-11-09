@@ -39,6 +39,8 @@ export type TurnoAgenda = {
   startTime: string;
   endTime: string;
   status: EstadoTurnoAgenda;
+  /** US-30: indica si el turno libre pertenece a una franja bloqueada. */
+  bloqueado?: boolean;
 };
 
 /** Filtro "Mostrar" del wireframe. */
@@ -167,7 +169,7 @@ export function filasHorario(turnos: TurnoAgenda[]): string[] {
 }
 
 export function pasaFiltro(t: TurnoAgenda, filtro: FiltroAgenda): boolean {
-  if (filtro === "libres") return t.status === "DISPONIBLE";
+  if (filtro === "libres") return t.status === "DISPONIBLE" && !t.bloqueado;
   if (filtro === "reservados") return t.status === "RESERVADO";
   return true;
 }
@@ -190,14 +192,14 @@ export type HuecoLibre = { startTime: string; endTime: string; turnos: number };
 
 /**
  * Huecos libres de un día (vista diaria): tandas de turnos disponibles
- * consecutivos. Un turno de otro estado, o un salto de horario, corta la tanda.
+ * consecutivos. Un turno de otro estado, bloqueado, o un salto de horario, corta la tanda.
  */
 export function huecosLibres(turnosDelDia: TurnoAgenda[]): HuecoLibre[] {
   const huecos: HuecoLibre[] = [];
   let actual: HuecoLibre | null = null;
   const ordenados = [...turnosDelDia].sort((a, b) => minutos(a.startTime) - minutos(b.startTime));
   for (const t of ordenados) {
-    if (t.status !== "DISPONIBLE") {
+    if (t.status !== "DISPONIBLE" || t.bloqueado) {
       actual = null;
       continue;
     }
@@ -224,6 +226,10 @@ export function resumenDelDia(turnosDelDia: TurnoAgenda[]): ResumenDia {
     total: 0,
   };
   for (const t of turnosDelDia) {
+    if (t.status === "DISPONIBLE" && t.bloqueado) {
+      r.total += 1;
+      continue;
+    }
     r[t.status] += 1;
     r.total += 1;
   }

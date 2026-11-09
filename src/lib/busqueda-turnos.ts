@@ -6,7 +6,8 @@
  * 1. Al confirmar la disponibilidad, los turnos generados quedan visibles para
  *    los pacientes sin intervención manual; antes de la confirmación, ningún
  *    turno de ese mes es visible (`agendaConfirmada === true`).
- * 2. La agenda muestra únicamente los turnos futuros y disponibles.
+ * 2. La agenda muestra únicamente los turnos futuros y disponibles (excluyendo
+ *    los bloqueados según US-30 / RF-AGE-06).
  * 3. El usuario puede filtrar por especialidad, por profesional o por ambos.
  * 4. El rango de fechas por defecto son los próximos treinta días.
  * 5. Los resultados se agrupan por día y se ordenan cronológicamente,
@@ -81,6 +82,8 @@ export type TurnoCandidatoBusqueda = {
   agendaConfirmada: boolean;
   /** Indica si el profesional se encuentra activo (US-03). Por defecto true. */
   doctorActivo?: boolean;
+  /** Indica si el turno libre pertenece a una franja bloqueada (US-30). */
+  bloqueado?: boolean;
 };
 
 export type TurnoDisponiblePaciente = {
@@ -256,7 +259,7 @@ export function formatearDiaLargo(fecha: string): string {
 /**
  * Filtra y ordena cronológicamente los turnos según todos los criterios de US-10:
  * - Criterio 1: Solo meses con disponibilidad confirmada (`agendaConfirmada === true`) y médico activo.
- * - Criterio 2: Solo turnos en estado `DISPONIBLE` y futuros respecto de `ahora`.
+ * - Criterio 2: Solo turnos en estado `DISPONIBLE`, sin bloqueo activo (`!t.bloqueado`) y futuros respecto de `ahora`.
  * - Criterio 3: Filtra por especialidad, por profesional o por ambos.
  * - Criterio 4/5: Dentro del rango `[desde, hasta]`, ordenados por fecha y hora de inicio.
  */
@@ -280,8 +283,9 @@ export function filtrarYOrdenarTurnosDisponibles(
     if (!t.agendaConfirmada) return false;
     if (t.doctorActivo === false) return false;
 
-    // Criterio 2: Únicamente turnos disponibles y futuros
+    // Criterio 2: Únicamente turnos disponibles, sin bloqueo activo (US-30) y futuros
     if (t.status !== "DISPONIBLE") return false;
+    if (t.bloqueado) return false;
     if (!esTurnoFuturo(t, ahora)) return false;
 
     // Rango de fechas

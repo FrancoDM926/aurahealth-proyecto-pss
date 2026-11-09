@@ -66,12 +66,20 @@ export default async function DashboardPage() {
           </Link>
         )}
         {role === "ADMINISTRATIVO" && (
-          <Link
-            href="/dashboard/estado-turnos"
-            className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
-          >
-            Registrar estado de turnos
-          </Link>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/dashboard/mostrador"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+            >
+              Ir a Mostrador de turnos
+            </Link>
+            <Link
+              href="/dashboard/estado-turnos"
+              className="rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-light"
+            >
+              Registrar estado de turnos
+            </Link>
+          </div>
         )}
         {role === "ENFERMERA" && (
           <Link
