@@ -53,21 +53,23 @@ model User {
   isActive      Boolean           @default(true)
   deactivatedAt DateTime?
 
-  monthlyAvailabilities     MonthlyAvailability[]
-  turnos                    Turno[]                      @relation("DoctorTurnos")
-  turnosReservados          Turno[]                      @relation("ReservedTurnos")
-  cambiosEstadoTurno        TurnoEstadoAuditLog[]        @relation("TurnoEstadoCambiadoPor")
-  personasAtendidas         PersonaAtendida[]
-  turnosCancelados          TurnoCancelacion[]
-  preciosConsulta           PrecioConsulta[]             @relation("PrecioConsultaDoctor")
-  pagosRegistrados          Pago[]                       @relation("PagoRegistradoPor")
+  monthlyAvailabilities       MonthlyAvailability[]
+  turnos                      Turno[]                      @relation("DoctorTurnos")
+  turnosReservados            Turno[]                      @relation("ReservedTurnos")
+  cambiosEstadoTurno          TurnoEstadoAuditLog[]        @relation("TurnoEstadoCambiadoPor")
+  personasAtendidas           PersonaAtendida[]
+  turnosCancelados            TurnoCancelacion[]
+  preciosConsulta             PrecioConsulta[]             @relation("PrecioConsultaDoctor")
+  pagosRegistrados            Pago[]                       @relation("PagoRegistradoPor")
   // Vacunatorio (US-63, US-28, US-29)
-  jornadasVacunatorio       JornadaVacunatorio[]         @relation("JornadaVacunatorioCreador")
-  turnosVacunacionTitular   TurnoVacunacion[]            @relation("TurnoVacunacionTitular")
-  turnosVacunacionOtorgados TurnoVacunacion[]            @relation("TurnoVacunacionOtorgadoPor")
-  cancelacionesVacunacion   TurnoVacunacionCancelacion[] @relation("VacunacionCancelaciones")
-  aplicacionesRecibidas     AplicacionDosis[]            @relation("AplicacionPacienteUser")
-  aplicacionesRegistradas   AplicacionDosis[]            @relation("AplicacionEnfermera")
+  jornadasVacunatorio         JornadaVacunatorio[]         @relation("JornadaVacunatorioCreador")
+  turnosVacunacionTitular     TurnoVacunacion[]            @relation("TurnoVacunacionTitular")
+  turnosVacunacionOtorgados   TurnoVacunacion[]            @relation("TurnoVacunacionOtorgadoPor")
+  cancelacionesVacunacion     TurnoVacunacionCancelacion[] @relation("VacunacionCancelaciones")
+  aplicacionesRecibidas       AplicacionDosis[]            @relation("AplicacionPacienteUser")
+  aplicacionesRegistradas     AplicacionDosis[]            @relation("AplicacionEnfermera")
+  fichasDiagnosticoComoMedico FichaDiagnostico[]           @relation("FichaDiagnosticoMedico")
+  entradasDiagnostico         FichaDiagnosticoEntrada[]    @relation("EntradaDiagnosticoAutor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -154,16 +156,59 @@ model Turno {
   recordatorioEmailLogId  String?
 
   // US-18 (RF-TUR-07): historial auditable de cambios de estado del turno.
-  estadoAuditLogs TurnoEstadoAuditLog[]
-  cancelaciones   TurnoCancelacion[]
+  estadoAuditLogs          TurnoEstadoAuditLog[]
+  cancelaciones            TurnoCancelacion[]
   // US-35: pago de la consulta (un único pago ACTIVO por turno cumplido).
-  pagos           Pago[]
+  pagos                    Pago[]
+  fichaDiagnosticoEntradas FichaDiagnosticoEntrada[]
 
   @@unique([doctorId, date, startTime])
   @@index([doctorId, date])
   @@index([status, date])
   @@index([reservedById])
   @@index([recordatorioEstado, date])
+}
+
+/// US-39: una ficha por paciente y médico. `patientKey` permite identificar
+/// tanto al usuario-paciente como a una persona atendida en una reserva.
+model FichaDiagnostico {
+  id          String                    @id @default(cuid())
+  doctorId    String
+  doctor      User                      @relation("FichaDiagnosticoMedico", fields: [doctorId], references: [id], onDelete: Cascade)
+  patientKey  String
+  patientName String
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  entradas    FichaDiagnosticoEntrada[]
+
+  @@unique([doctorId, patientKey])
+  @@index([patientKey])
+}
+
+/// US-39: cada consulta cumplida agrega una entrada firmada. Una consulta no
+/// puede generar dos entradas originales, pero una corrección posterior se
+/// registra como una nueva entrada sobre la misma ficha.
+model FichaDiagnosticoEntrada {
+  id               String           @id @default(cuid())
+  fichaId          String
+  ficha            FichaDiagnostico @relation(fields: [fichaId], references: [id], onDelete: Cascade)
+  turnoId          String
+  turno            Turno            @relation(fields: [turnoId], references: [id], onDelete: Restrict)
+  authorId         String
+  author           User             @relation("EntradaDiagnosticoAutor", fields: [authorId], references: [id], onDelete: Restrict)
+  diagnosis        String
+  treatment        String
+  observations     String
+  consultationDate DateTime         @db.Date
+  consultationTime String
+  authorName       String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  replacesEntryId  String?
+
+  @@unique([turnoId, replacesEntryId])
+  @@index([fichaId, consultationDate])
+  @@index([authorId])
 }
 
 /// US-64: persona a cuyo nombre un usuario reservó un turno, con su cobertura.

@@ -182,7 +182,7 @@ export function AgendaProfesionalView({ doctorName, vista, fecha, hoy, turnos }:
 }
 
 function Turno({ turno }: { turno: TurnoAgenda }) {
-  return (
+  const contenido = (
     <div className={`rounded-md border px-2 py-1.5 text-xs ${ESTADO_CLASES[turno.status]}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-bold tabular-nums">
@@ -191,6 +191,18 @@ function Turno({ turno }: { turno: TurnoAgenda }) {
         <span className="font-semibold">{ESTADO_LABELS[turno.status]}</span>
       </div>
     </div>
+  );
+
+  if (turno.status === "CUMPLIDO") {
+    return (
+      <Link href={`/dashboard/ficha-diagnostico?turnoId=${turno.id}`} className="block rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+        {contenido}
+      </Link>
+    );
+  }
+
+  return (
+    contenido
   );
 }
 

@@ -54,6 +54,10 @@ export function EstadoTurnosView({ datos }: EstadoTurnosViewProps) {
         nuevoEstado,
       });
       if (resultado.success) {
+        if (nuevoEstado === "CUMPLIDO" && datos.viewerRole === "MEDICO") {
+          router.push(`/dashboard/ficha-diagnostico?turnoId=${encodeURIComponent(turnoId)}`);
+          return;
+        }
         setFeedback({ tipo: "ok", mensaje: resultado.message });
         router.refresh();
       } else {
