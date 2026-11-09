@@ -4,9 +4,9 @@
 - Referencia existente (retirada): `wireframes/wf_busqueda_turnos.html` cubría US-12 por separado. US-12 se redefinió dentro de US-10, así que su esquema de filtros y resultados se fusionó en `wf_agenda_paciente.html` y el archivo suelto se borró.
 - Lanes no ejecutadas: no se realizó investigación de marcas ni prototipado visual porque el pedido es un esquema conceptual interno, no una interfaz final.
 
-## 0.1 Versión 5 — alcance y asignación
+## 0.1 Versión 6 — alcance y asignación
 
-El equipo implementador adoptó la regla de que **cada User Story la ejecuta un único integrante**. El alcance no cambió respecto de la versión anterior: siguen siendo **27 User Stories y 73 puntos** repartidos en tres sprints. Lo que cambió es que cada pantalla tiene un dueño, indicado al pie.
+El equipo implementador adoptó la regla de que **cada User Story la ejecuta un único integrante**. Con el Sprint 3 refinado el alcance comprometido queda completo: **35 User Stories y 93 puntos** repartidos en tres sprints (incluidas las reservas de bugs). Cada pantalla tiene un dueño, indicado al pie.
 
 | Pantalla | US | Sprint | Dueño | Estado |
 |---|---|---|---|---|
@@ -16,7 +16,7 @@ El equipo implementador adoptó la regla de que **cada User Story la ejecuta un 
 | `wf_gestion_usuarios_internos.html` | US-03 | 1 | I2 | Rol asignado en el alta y especialidad para el rol Médico. |
 | `wf_carga_disponibilidad_mensual.html` | US-06 | 1 | I5 | Validación de «exactamente 2 jornadas» a «entre 2 y 7» (RN-02), con contador por semana y los dos estados de error. Sin selector de duración: son 30 minutos fijos (RN-09). |
 | `wf_agenda_generada.html` | US-08 | 1 | I3 | Acotada a US-08. La prevención de solapamientos (antigua US-09 / RF-AGE-07) fue retirada por el cliente. |
-| `wf_agenda_profesional.html` | US-11 | 1 | I4 | Sin el estado «bloqueado», que corresponde a US-30, fuera del alcance. Las tres vistas (diaria, semanal, mensual) que pide RF-AGE-05. |
+| `wf_agenda_profesional.html` | US-11 | 1 | I4 | Las tres vistas (diaria, semanal, mensual) que pide RF-AGE-05. El bloqueo de franjas vive en `wf_bloqueo_franja.html` (US-30). |
 | `wf_agenda_paciente.html` | US-10 | 2 | I3, I4, I2 | **Redefinida.** Absorbe la búsqueda por especialidad, profesional y rango de fechas que antes era US-12 (2 → 4 puntos, dueño único → trío). Ya no es solo lectura: el botón «Reservar» abre US-13. |
 | `wf_reserva_turno.html` | US-13 | 2 | I2, I5, I4 | **Nueva, redefinida.** Absorbe el control de concurrencia que antes era US-20 (3 → 5 puntos, pareja → trío). Incluye el estado de error cuando otro paciente reserva primero. |
 | `wf_reserva_terceros.html` | US-64 | 2 | I2 | **Nueva.** Paso adicional del flujo de reserva para cargar los datos y la obra social de la persona atendida. |
@@ -24,22 +24,50 @@ El equipo implementador adoptó la regla de que **cada User Story la ejecuta un 
 | `wf_estado_turno.html` | US-18 | 2 | I1 | **Nueva.** Vista de mostrador/consultorio para marcar cumplido o ausente, con su registro de auditoría. |
 | `wf_catalogo_vacunas.html` | US-24 | 2 | I1 | **Nueva.** Alta, edición y desactivación de vacunas (denominación, laboratorio, esquema de dosis). |
 | `wf_servicio_email.html` | US-21 | 2 | I1 | **Nueva.** Dejó de ser infraestructura sin pantalla: el administrador edita solo el mensaje de cada plantilla (asunto y destinatarios no editables) y define la cantidad máxima de envíos fallidos que se le admite a un mismo usuario. |
-| `wf_costo_consulta.html` | US-33 | 3 | I5 | **Nueva.** Costo de la consulta definido por cada médico, con historial de vigencias. |
+| `wf_agenda_vacunatorio.html` | US-63 | 3 | I5, I1 | **Nueva.** Agenda mensual del vacunatorio, independiente de las médicas: la enfermera carga días y franjas y el sistema publica los turnos de 30 minutos. |
+| `wf_turno_vacunacion.html` | US-28 | 3 | I5, I3 | **Actualizada.** Turno de vacunación desde mostrador: vacuna, horario del vacunatorio, filtro por rango de fechas y reserva a nombre de otra persona (reutiliza `wf_reserva_terceros.html`, US-64); puede convivir con un turno médico a la misma hora. |
+| `wf_dosis_aplicada.html` | US-29 | 3 | I4 | **Nueva.** Registro de la dosis aplicada (paciente, vacuna, dosis, fecha y hora, enfermera del usuario autenticado) y anulación con motivo. |
+| `wf_carnet_vacunacion.html` | US-57 | 3 | I3 | **Nueva.** Carnet de vacunación en PDF con las aplicaciones de la sala y el aviso de esquema incompleto. |
+| — (sin pantalla propia) | US-32 | 3 | I1 | **Se retiró el wireframe propio.** La cobertura que declara el paciente (entidad, plan, número de afiliado) se consulta y corrige desde `wf_mis_datos.html` (US-01) o al reservar para un tercero (`wf_reserva_terceros.html`, US-64). El listado de obras sociales y su **descuento porcentual predefinido** —que se aplica sobre el precio sin cobertura del médico (US-33)— pasó a `wf_configuracion.html` (US-06), mismo criterio que US-49/US-50. |
+| `wf_costo_consulta.html` | US-33 | 3 | I5 | **Actualizada.** El médico define un único precio de consulta sin cobertura, con historial de vigencias; ya no carga un precio distinto por cada obra social. |
+| `wf_calculo_importe.html` | US-34 | 3 | I1, I2 | **Actualizada.** Desglose del importe: precio sin cobertura del médico menos el descuento predefinido de la obra social de la persona atendida (US-32), con el precio vigente a la fecha; sin precio configurado no se cierra el cobro. |
+| `wf_registro_pago.html` | US-35 | 3 | I2 | **Nueva.** Pago en efectivo (solo administrativo) o por transferencia con referencia; un único pago activo por turno cumplido. |
+| `wf_comprobante.html` | US-36 | 3 | I2 | **Nueva.** Comprobante en PDF con numeración correlativa, disponible para titular, reservante y administrativo. |
+| `wf_reporte_pagos.html` | US-47 | 3 | I2 | **Nueva.** Pagos por período, medio y obra social, con los anulados identificados sin sumar. |
+| `wf_ficha_diagnostico.html` | US-39 | 3 | I3, I4 | **Nueva.** Entrada de la ficha sobre turno cumplido; edición solo del autor y solo el día de la consulta, con fecha y hora de última edición. |
+| `wf_ficha_consolidada.html` | US-40 | 3 | I3 | **Actualizada.** Fichas de todos los médicos con autor y especialidad, con filtro por paciente además de profesional, especialidad y rango de fechas; la vista es siempre de solo lectura, incluida la ficha propia del día (la edición vive en `wf_ficha_diagnostico.html`, US-39, que ahora enlaza a esta pantalla). |
+| `wf_historial_paciente.html` | US-41 | 3 | I4 | **Nueva.** Historial clínico de solo lectura para el paciente, con descarga en PDF. |
+| `wf_auditoria_accesos.html` | US-44 | 3 | I4 | **Nueva.** Auditoría de accesos al historial —exitosos y rechazados— de solo lectura para el administrador. |
+| `wf_adjuntos_estudios.html` | US-62 | 3 | I3, I2 | **Nueva.** Adjuntar imágenes o PDF a una entrada de la ficha, con tamaño máximo configurable. |
+| `wf_bloqueo_franja.html` | US-30 | 3 | I5 | **Nueva.** Bloqueo de los turnos libres de una franja publicada, con los ya reservados listados aparte; reversible. |
+| `wf_aviso_bloqueo.html` | US-22 | 3 | I3 | **Nueva.** Pacientes a contactar tras un bloqueo y modelo del email de aviso; no modifica reservas. |
+| `wf_mostrador.html` | US-17 | 3 | I5, I4 | **Actualizada.** Gestión de turnos desde mostrador (médicos y de vacunación), alta de paciente en el flujo, reprogramación como cancelar + reservar y marca de asistencia (cumplido / ausente) igual que el médico (US-18), que habilita el cálculo del importe y el pago. |
+| `wf_reporte_turnos.html` | US-45 | 3 | I4 | **Nueva.** Totales y desglose por especialidad y profesional con rango de fechas y gráfico; incluye exportación. |
+| `wf_reporte_ausentismo.html` | US-48 | 3 | I1 | **Nueva.** Ausentismo sobre turnos reservados por profesional, especialidad, tipo y día, y pacientes con más ausencias; incluye exportación. |
 | `wf_acceso_denegado.html` | — | 1 a 3 | — | Estado transversal de RNF-03, verificado dentro de cada historia según la condición 6 de la definición de terminado. |
 
 US-21 (servicio de envío de email) ahora tiene pantalla propia (`wf_servicio_email.html`): edición del mensaje de las plantillas y configuración del límite de envíos fallidos por usuario. US-14 (confirmación por email) y US-15 (recordatorio por email) siguen sin pantalla propia: usan las plantillas que administra US-21, pero su disparo es infraestructura.
 
-### Pendientes de los refinements
+### Refinamiento del Sprint 3
 
-Las historias de pagos, historial clínico y reportes (US-32, US-34, US-35, US-36, US-39, US-40, US-41, US-44, US-45, US-47) necesitan su wireframe antes de entrar al refinement del Sprint 3. Están comprometidas en el plan pero todavía sin esquema. El ciclo de reserva del Sprint 2 (US-10, US-13, US-16, US-18, US-24, US-64) ya tiene wireframe; US-12 y US-20 se retiraron como historias propias porque el catálogo las redefinió dentro de US-10 y US-13 respectivamente.
+Las 20 historias del Sprint 3 (US-63, US-33, US-32, US-39, US-45, US-48, US-30, US-28, US-34, US-22, US-40, US-41, US-62, US-29, US-17, US-35, US-44, US-57, US-36 y US-47) ya tienen wireframe y entran al refinement con esquema. US-49 (filtros comunes) y US-50 (exportación) se retiraron como historias propias: quedan como requerimiento especial incluido en la implementación de los reportes (RF-REP-05 y RF-REP-06).
 
 ### Fuera del alcance, sin wireframe
 
-Módulo de vacunas (RF-VAC), aplicación móvil (RF-MOV), gestión desde mostrador, bloqueo de franjas publicadas, recuperación de contraseña, filtros y exportación de reportes, trazabilidad y adjuntos del historial clínico.
+Solo la aplicación móvil (cubierta por RNF-08, sin pantalla propia), la recuperación de contraseña y, desde el ajuste del 17/10, US-32 (ver abajo). Los filtros comunes y la exportación de reportes no tienen pantalla propia: viven dentro de los reportes (US-45, US-47 y US-48).
+
+### Ajustes del cliente (17/10)
+
+- **Descuento por obra social.** Nueva regla de negocio: cada obra social del listado tiene un descuento porcentual predefinido, que se aplica sobre el precio de consulta sin cobertura. Afecta a US-32, US-33 y US-34.
+- **US-33 redefinida.** El médico ya no carga un precio por cada obra social: carga un único precio de consulta sin cobertura (`wf_costo_consulta.html`). El importe final (US-34, `wf_calculo_importe.html`) sale de aplicar sobre ese precio el descuento de la obra social de la persona atendida.
+- **US-32 sin pantalla propia.** Se retira `wf_cobertura_medica.html`. La cobertura del paciente ya se declaraba en US-01/US-64; el listado de obras sociales y su descuento se mueven a `wf_configuracion.html` (US-06), mismo criterio que US-49/US-50.
+- **US-28 alineada con US-13.** `wf_turno_vacunacion.html` suma el filtro por rango de fechas de US-10 y la reserva a nombre de otra persona reutilizando `wf_reserva_terceros.html` (US-64), igual que el turno médico.
+- **US-17 suma marca de asistencia.** `wf_mostrador.html` incorpora la marca de cumplido/ausente que hoy tiene el médico en US-18; marcar cumplido habilita el cálculo del importe y el pago (US-34, US-35), igual que en la vista del médico.
+- **US-40 con filtro por paciente y siempre de solo lectura.** `wf_ficha_consolidada.html` suma el filtro por paciente y deja explícito que la vista nunca es editable, ni siquiera la ficha propia del día. `wf_ficha_diagnostico.html` (US-39) suma un acceso directo a la ficha consolidada del paciente.
 
 ### Advertencia de cronograma
 
-Con un único implementador por historia el alcance comprometido **necesita 47,9 días de implementación y el calendario da 21**. El análisis está en la sección 7 del bosquejo de sprints. Estos wireframes describen el alcance comprometido, no el que llega a la demo del 12/11 si no se acciona alguna de las palancas propuestas.
+El plan vigente (ProjectLibre, `AuraHealth_v7.xml`) cierra el proyecto el día 32,8 de los 26 disponibles con la capacidad asumida (2,65 h por integrante por día): faltan 6,8 días. El equipo trabaja sobre las palancas de ajuste y estos wireframes describen el alcance comprometido.
 
 ## 1. Atmosphere & Identity
 Herramienta operativa, clara y confiable para una sala médica. La firma visual es un plano de trabajo con bordes visibles, bloques numerados y jerarquía explícita para que el equipo implementador pueda identificar cada decisión sin confundirla con diseño visual definitivo.
