@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import {
   BTN_PRIMARY,
@@ -70,6 +71,22 @@ export default async function ReportePagosPage({ searchParams }: PageProps) {
         <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
           Reportes — Pagos realizados
         </h1>
+        {/* Pestañas de reportes */}
+        <div className="mt-4 flex gap-4 border-b border-line text-sm">
+          <Link
+            href="/dashboard/admin/reportes/pagos"
+            className="border-b-2 border-primary pb-2 font-bold text-primary"
+          >
+            Pagos realizados
+          </Link>
+          <Link
+            href="/dashboard/admin/reportes/ausentismo"
+            className="pb-2 font-medium text-ink-secondary transition hover:text-ink"
+          >
+            Asistencia y ausentismo
+          </Link>
+        </div>
+
         <p className="mt-1 text-sm text-ink-secondary">
           Importes por período, medio de pago y obra social.
         </p>
