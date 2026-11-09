@@ -6,6 +6,7 @@ import { assertRoles } from "@/lib/auth-session";
 import { validarLimitesJornadas } from "@/lib/availability-rn02";
 import { validarAntelacionRecordatorio } from "@/lib/recordatorios";
 import { validarAntelacionCancelacion } from "@/lib/reservas";
+import { validarMaxAdjuntoMB } from "@/lib/historial";
 import {
   procesarRecordatoriosPendientes,
   type ResumenRecordatorios,
@@ -142,6 +143,37 @@ export async function saveCancelacionAntelacion(horas: number): Promise<ActionRe
   } catch (err) {
     console.error("saveCancelacionAntelacion:", err);
     return { success: false, message: "No se pudo guardar la antelación de cancelación." };
+  }
+}
+
+/**
+ * US-62: el administrador define el tamaño máximo (MB) de cada estudio que se
+ * adjunta a la ficha de diagnóstico.
+ */
+export async function saveAdjuntoMaxMB(mb: number): Promise<ActionResult> {
+  try {
+    await assertRoles(["ADMINISTRADOR"]);
+  } catch {
+    return { success: false, message: "No tenés permisos para esta acción." };
+  }
+
+  const error = validarMaxAdjuntoMB(mb);
+  if (error) {
+    return { success: false, message: error };
+  }
+
+  try {
+    await db.configuracion.upsert({
+      where: { id: 1 },
+      create: { id: 1, adjuntoMaxMB: mb },
+      update: { adjuntoMaxMB: mb },
+    });
+    revalidatePath("/dashboard/admin/configuracion");
+    revalidatePath("/dashboard/historial/entradas", "layout");
+    return { success: true, message: `Tamaño máximo de adjuntos actualizado a ${mb} MB.` };
+  } catch (err) {
+    console.error("saveAdjuntoMaxMB:", err);
+    return { success: false, message: "No se pudo guardar el tamaño máximo de adjuntos." };
   }
 }
 

@@ -23,6 +23,8 @@ type NavKey =
   | "turnos-vacunacion"
   | "carnet"
   | "costo-consulta"
+  | "historial"
+  | "mi-historial"
   | "pagos"
   | "comprobantes"
   | "reportes";
@@ -54,11 +56,13 @@ export function DashboardShell({
     { key: "turnos-vacunacion", href: "/dashboard/turnos-vacunacion", label: "Vacunación", roles: ["USUARIO"] },
     { key: "mis-turnos", href: "/dashboard/mis-turnos", label: "Mis turnos", roles: ["USUARIO"] },
     { key: "carnet", href: "/dashboard/carnet", label: "Mi carnet", roles: ["USUARIO"] },
+    { key: "mi-historial", href: "/dashboard/mi-historial", label: "Mi historial", roles: ["USUARIO"] },
     { key: "comprobantes", href: "/dashboard/comprobantes", label: "Comprobantes", roles: ["USUARIO"] },
     { key: "agenda", href: "/dashboard/agenda", label: "Mi agenda", roles: ["MEDICO"] },
     { key: "disponibilidad", href: "/dashboard/disponibilidad", label: "Disponibilidad", roles: ["MEDICO"] },
     { key: "costo-consulta", href: "/dashboard/costo-consulta", label: "Costo de consulta", roles: ["MEDICO"] },
     { key: "estado-turnos", href: "/dashboard/estado-turnos", label: "Estado de turnos", roles: ["MEDICO", "ADMINISTRATIVO"] },
+    { key: "historial", href: "/dashboard/historial", label: "Historial", roles: ["MEDICO"] },
     { key: "pagos", href: "/dashboard/pagos", label: "Pagos", roles: ["ADMINISTRATIVO"] },
     { key: "catalogo-vacunas", href: "/dashboard/catalogo-vacunas", label: "Catálogo de vacunas", roles: ["ENFERMERA"] },
     { key: "agenda-vacunatorio", href: "/dashboard/agenda-vacunatorio", label: "Agenda del vacunatorio", roles: ["ENFERMERA"] },

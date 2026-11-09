@@ -4,8 +4,10 @@ import { SalaDireccionForm } from "@/components/sala-direccion-form";
 import { RecordatorioAntelacionForm } from "@/components/recordatorio-antelacion-form";
 import { CancelacionAntelacionForm } from "@/components/cancelacion-antelacion-form";
 import { ObrasSocialesForm } from "@/components/obras-sociales-form";
+import { AdjuntoMaxForm } from "@/components/adjunto-max-form";
 import { requireRoles } from "@/lib/auth-session";
 import {
+  getAdjuntoMaxMB,
   getCancelacionAntelacion,
   getLimitesJornadas,
   getObrasSociales,
@@ -27,6 +29,7 @@ export default async function ConfiguracionPage() {
   const antelacionRecordatorio = await getRecordatorioAntelacion();
   const antelacionCancelacion = await getCancelacionAntelacion();
   const obrasSociales = await getObrasSociales();
+  const adjuntoMaxMB = await getAdjuntoMaxMB();
 
   return (
     <DashboardShell
@@ -45,6 +48,7 @@ export default async function ConfiguracionPage() {
           <RecordatorioAntelacionForm initial={antelacionRecordatorio} />
           <CancelacionAntelacionForm initial={antelacionCancelacion} />
           <ObrasSocialesForm initial={obrasSociales} />
+          <AdjuntoMaxForm initial={adjuntoMaxMB} />
         </div>
       </div>
     </DashboardShell>

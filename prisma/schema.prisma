@@ -68,8 +68,11 @@ model User {
   cancelacionesVacunacion     TurnoVacunacionCancelacion[] @relation("VacunacionCancelaciones")
   aplicacionesRecibidas       AplicacionDosis[]            @relation("AplicacionPacienteUser")
   aplicacionesRegistradas     AplicacionDosis[]            @relation("AplicacionEnfermera")
+  // Historial clínico (US-39 a US-62)
   fichasDiagnosticoComoMedico FichaDiagnostico[]           @relation("FichaDiagnosticoMedico")
   entradasDiagnostico         FichaDiagnosticoEntrada[]    @relation("EntradaDiagnosticoAutor")
+  adjuntosSubidos             AdjuntoEstudio[]             @relation("AdjuntoSubidoPor")
+  accesosHistorial            AccesoHistorialLog[]         @relation("AccesoHistorialUsuario")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -205,6 +208,7 @@ model FichaDiagnosticoEntrada {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   replacesEntryId  String?
+  adjuntos         AdjuntoEstudio[]
 
   @@unique([turnoId, replacesEntryId])
   @@index([fichaId, consultationDate])
@@ -285,6 +289,8 @@ model Configuracion {
   maxEnviosFallidosPorUsuario Int      @default(3)
   // US-16: antelación mínima para que el paciente cancele un turno, en horas (inicial 24).
   cancelacionAntelacionHoras  Int      @default(24)
+  // US-62: tamaño máximo de cada estudio adjunto a la ficha, en MB (inicial 10).
+  adjuntoMaxMB                Int      @default(10)
   updatedAt                   DateTime @updatedAt
 }
 
@@ -565,4 +571,66 @@ model AplicacionDosis {
   @@index([pacienteUserId, vacunaId])
   @@index([personaAtendidaId, vacunaId])
   @@index([aplicadaAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Historial clínico — contrato compartido con US-39
+//
+// US-39 (a cargo de otro integrante) crea la ficha al cargar la primera consulta
+// y agrega entradas a la misma ficha. US-40, US-41 y US-62 son consumidoras de
+// solo lectura, salvo US-62, que agrega estudios a una entrada ya existente.
+// Si al integrar US-39 cambian los nombres o las acciones, estas consultas son
+// el único punto a adaptar: `src/services/historial/`.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// US-39 / RN-07: una única ficha de diagnóstico por cada par paciente–médico.
+/// US-62 (RF-HIS-07): estudio (imagen o PDF) adjunto a una entrada de la ficha.
+/// El contenido vive en la base para no depender del sistema de archivos del host.
+model AdjuntoEstudio {
+  id              String                  @id @default(cuid())
+  entradaId       String
+  entrada         FichaDiagnosticoEntrada @relation(fields: [entradaId], references: [id], onDelete: Cascade)
+  nombreArchivo   String
+  tipoMime        String
+  tamanoBytes     Int
+  contenido       Bytes
+  subidoPorId     String
+  subidoPor       User                    @relation("AdjuntoSubidoPor", fields: [subidoPorId], references: [id], onDelete: Restrict)
+  subidoPorNombre String
+  createdAt       DateTime                @default(now())
+
+  @@index([entradaId])
+}
+
+enum TipoAccesoHistorial {
+  FICHA_CONSOLIDADA
+  HISTORIAL_PACIENTE
+  ESTUDIOS
+}
+
+enum ResultadoAccesoHistorial {
+  EXITOSO
+  RECHAZADO
+}
+
+/// RNF-04 / US-44: registro de cada acceso al historial clínico, exitoso o rechazado.
+/// La vista de auditoría (US-44) consume esta tabla; US-40, US-41 y US-62 la alimentan.
+model AccesoHistorialLog {
+  id             String                   @id @default(cuid())
+  usuarioId      String
+  usuario        User                     @relation("AccesoHistorialUsuario", fields: [usuarioId], references: [id], onDelete: Restrict)
+  usuarioNombre  String
+  usuarioRole    Role
+  /// US-39: `USER:<id>` o `PERSONA:<id>`. Sin FK: las personas atendidas no
+  /// tienen fila en `User`.
+  pacienteKey    String?
+  pacienteNombre String
+  tipo           TipoAccesoHistorial
+  resultado      ResultadoAccesoHistorial
+  detalle        String?
+  createdAt      DateTime                 @default(now())
+
+  @@index([createdAt])
+  @@index([pacienteKey])
+  @@index([usuarioId])
 }
