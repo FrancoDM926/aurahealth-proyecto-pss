@@ -390,9 +390,6 @@ export function InternalUsersPanel({ users }: Props) {
           </nav>
         )}
 
-        <p className="mt-4 text-xs text-ink-secondary">
-          La baja solicita confirmación y conserva trazabilidad según la regla del sistema.
-        </p>
       </section>
 
       {editing && editForm && (

@@ -48,6 +48,9 @@ export function BloqueoFranjaView({
     bloqueoId?: string;
   } | null>(null);
 
+  // Modal simple: confirmación previa y aviso de éxito.
+  const [modal, setModal] = useState<"confirmar" | "exito" | null>(null);
+
   const [isPendingPreview, startPreviewTransition] = useTransition();
   const [isPendingConfirm, startConfirmTransition] = useTransition();
 
@@ -91,6 +94,7 @@ export function BloqueoFranjaView({
       });
 
       if (!res.success) {
+        setModal(null);
         setFeedback({
           tipo: "error",
           mensaje: res.message,
@@ -98,6 +102,7 @@ export function BloqueoFranjaView({
         return;
       }
 
+      setModal("exito");
       setFeedback({
         tipo: "ok",
         mensaje: res.message,
@@ -392,7 +397,7 @@ export function BloqueoFranjaView({
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  onClick={handleConfirmarBloqueo}
+                  onClick={() => setModal("confirmar")}
                   disabled={
                     isPendingConfirm ||
                     (preview.cantidadLibres === 0 && preview.cantidadReservados === 0)
@@ -414,6 +419,66 @@ export function BloqueoFranjaView({
           </>
         )}
       </div>
+
+      {modal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bloqueo-modal-titulo"
+        >
+          <div className="w-full max-w-md rounded-xl border border-line bg-surface p-6 shadow-xl">
+            {modal === "confirmar" ? (
+              <>
+                <h2 id="bloqueo-modal-titulo" className="text-lg font-bold text-ink">
+                  ¿Estás seguro?
+                </h2>
+                <p className="mt-2 text-sm text-ink-secondary">
+                  Se van a bloquear los turnos libres de la franja seleccionada
+                  {preview ? ` (${preview.cantidadLibres})` : ""}. Los turnos ya reservados no se
+                  modifican.
+                </p>
+                <div className="mt-5 flex flex-wrap justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setModal(null)}
+                    disabled={isPendingConfirm}
+                    className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink transition hover:border-primary/50 hover:bg-background disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmarBloqueo}
+                    disabled={isPendingConfirm}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isPendingConfirm ? "Bloqueando..." : "Sí, bloquear"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 id="bloqueo-modal-titulo" className="text-lg font-bold text-ink">
+                  Turnos bloqueados
+                </h2>
+                <p className="mt-2 text-sm text-ink-secondary">
+                  Se bloquearon los turnos libres de la franja seleccionada.
+                </p>
+                <div className="mt-5 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setModal(null)}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+                  >
+                    Aceptar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

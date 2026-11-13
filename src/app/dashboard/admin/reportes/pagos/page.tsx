@@ -268,10 +268,6 @@ export default async function ReportePagosPage({ searchParams }: PageProps) {
                   Exportar CSV
                 </a>
               </div>
-              <Hint>
-                Los filtros comunes y la exportación a PDF o CSV son requerimientos especiales incluidos en
-                la implementación (RF-REP-05, RF-REP-06): no tienen historia de usuario propia.
-              </Hint>
             </Bloque>
           </>
         )}

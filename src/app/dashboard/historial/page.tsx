@@ -265,11 +265,6 @@ export default async function HistorialPage({ searchParams }: PageProps) {
                   );
                 })}
               </div>
-              <Hint>
-                Esta vista consolidada es siempre de solo lectura: para cargar o editar una
-                entrada, el médico va a «Estado de turnos» (US-39). Cada acceso queda registrado
-                en la auditoría.
-              </Hint>
             </>
           )}
         </Bloque>

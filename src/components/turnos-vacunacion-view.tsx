@@ -430,9 +430,6 @@ export function TurnosVacunacionView({
               ))}
             </div>
           )}
-          <p className="mt-4 text-xs text-ink-secondary">
-            Turnos generados por la agenda del vacunatorio. No se verifica stock de vacunas.
-          </p>
         </section>
       )}
     </div>

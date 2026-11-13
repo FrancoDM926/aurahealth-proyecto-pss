@@ -82,3 +82,28 @@ body {
 .animate-border-blink {
   animation: border-blink 1.6s ease-in-out;
 }
+
+/* Los elementos clickeables muestran la manito; los deshabilitados, "no permitido".
+   Va en @layer base para que las utilidades de Tailwind (cursor-*) sigan ganando. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled),
+  label[for],
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="date"]:not(:disabled),
+  input[type="time"]:not(:disabled),
+  input[type="month"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  input[type="submit"]:disabled {
+    cursor: not-allowed;
+  }
+}

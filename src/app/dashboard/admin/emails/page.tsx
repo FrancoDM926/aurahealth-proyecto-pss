@@ -124,17 +124,6 @@ export default async function ServicioEmailPage({ searchParams }: PageProps) {
           {/* 3 · Configuración */}
           <EmailFallidosForm initial={maxFallidos} />
 
-          <div className="rounded-xl border-2 border-dashed border-primary/40 bg-primary-light/50 p-4 text-sm text-ink">
-            Esta pantalla amplía US-21: originalmente era infraestructura sin pantalla propia.
-            Ahora el administrador edita el cuerpo de las plantillas y el límite de envíos
-            fallidos por usuario desde acá.
-          </div>
-
-          <p className="text-xs text-ink-muted">
-            US cubierta: US-21 · servicio de envío de email: edición del mensaje de las
-            plantillas y configuración del límite de envíos fallidos por usuario. US-14 y
-            US-15 usan estas plantillas; su disparo sigue siendo infraestructura.
-          </p>
         </div>
       </div>
     </DashboardShell>

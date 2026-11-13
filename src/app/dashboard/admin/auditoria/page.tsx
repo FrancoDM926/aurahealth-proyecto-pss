@@ -3,16 +3,10 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import {
   BTN_PRIMARY,
   BTN_SECONDARY,
-  Badge,
   Bloque,
   Callout,
   Hint,
   INPUT_CLASS,
-  TBODY,
-  TD,
-  TH,
-  THEAD_TR,
-  Tabla,
 } from "@/components/pagos-ui";
 import { requireRoles } from "@/lib/auth-session";
 import {
@@ -23,6 +17,7 @@ import {
   normalizarFiltrosAuditoriaHistorial,
   tonoResultadoAcceso,
 } from "@/lib/auditoria-historial";
+import { TablaAccesos } from "@/components/auditoria-tabla-accesos";
 import {
   consultarAuditoriaAccesos,
   opcionesFiltrosAuditoria,
@@ -195,32 +190,18 @@ export default async function AuditoriaAccesosPage({ searchParams }: PageProps) 
             {auditoria.filas.length === 0 ? (
               <Callout>No hay accesos registrados para los filtros elegidos.</Callout>
             ) : (
-              <Tabla>
-                <thead>
-                  <tr className={THEAD_TR}>
-                    <th className={TH}>Fecha y hora</th>
-                    <th className={TH}>Usuario</th>
-                    <th className={TH}>Paciente</th>
-                    <th className={TH}>Tipo de acceso</th>
-                    <th className={TH}>Resultado</th>
-                  </tr>
-                </thead>
-                <tbody className={TBODY}>
-                  {auditoria.filas.map((fila) => (
-                    <tr key={fila.id} title={fila.detalle ?? undefined}>
-                      <td className={`${TD} whitespace-nowrap`}>{fila.fechaHoraTexto}</td>
-                      <td className={TD}>{fila.usuarioNombre}</td>
-                      <td className={TD}>{fila.pacienteNombre}</td>
-                      <td className={TD}>{TIPO_ACCESO_HISTORIAL_LABELS[fila.tipo]}</td>
-                      <td className={TD}>
-                        <Badge tono={tonoResultadoAcceso(fila.resultado)}>
-                          {RESULTADO_ACCESO_LABELS[fila.resultado]}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Tabla>
+              <TablaAccesos
+                filas={auditoria.filas.map((fila) => ({
+                  id: fila.id,
+                  fechaHoraTexto: fila.fechaHoraTexto,
+                  usuarioNombre: fila.usuarioNombre,
+                  pacienteNombre: fila.pacienteNombre,
+                  tipoLabel: TIPO_ACCESO_HISTORIAL_LABELS[fila.tipo],
+                  resultadoLabel: RESULTADO_ACCESO_LABELS[fila.resultado],
+                  tono: tonoResultadoAcceso(fila.resultado),
+                  detalle: fila.detalle,
+                }))}
+              />
             )}
             {auditoria.truncado && (
               <Hint>
@@ -228,14 +209,6 @@ export default async function AuditoriaAccesosPage({ searchParams }: PageProps) 
                 {auditoria.total}. Ajustá los filtros para ver otros.
               </Hint>
             )}
-            <Hint>
-              Se registran los accesos exitosos y también los intentos rechazados. La vista es de
-              solo lectura: no permite modificar ni eliminar registros.
-            </Hint>
-            <Callout>
-              Este registro implementa la auditoría transversal definida en RNF-04 y da
-              trazabilidad a los accesos de US-40 y US-41.
-            </Callout>
           </Bloque>
         )}
       </div>

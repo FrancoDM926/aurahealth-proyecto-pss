@@ -14,6 +14,7 @@ import {
 } from "@/lib/busqueda-turnos";
 import { SPECIALTY_LABELS } from "@/lib/roles";
 import type { MedicalSpecialty } from "@/generated/prisma/client";
+import { Paginacion, usePaginacion } from "@/components/paginacion";
 
 type BusquedaTurnosViewProps = {
   filtros: FiltrosBusquedaNormalizados;
@@ -34,6 +35,13 @@ export function BusquedaTurnosView({
 }: BusquedaTurnosViewProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+
+  // Paginación del lado del cliente sobre la lista ordenada; se vuelve a agrupar por día.
+  const paginacion = usePaginacion(turnos, 15);
+  const idsVisibles = new Set(paginacion.items.map((t) => t.id));
+  const gruposVisibles = gruposPorDia
+    .map((g) => ({ ...g, turnos: g.turnos.filter((t) => idsVisibles.has(t.id)) }))
+    .filter((g) => g.turnos.length > 0);
 
   const [specialty, setSpecialty] = useState<MedicalSpecialty | "">(filtros.specialty);
   const [doctorId, setDoctorId] = useState<string>(filtros.doctorId);
@@ -217,7 +225,7 @@ export function BusquedaTurnosView({
           </div>
 
           <div className="mt-4 space-y-6">
-            {gruposPorDia.map((grupo) => (
+            {gruposVisibles.map((grupo) => (
               <div
                 key={grupo.date}
                 className="overflow-hidden rounded-xl border border-line bg-background"
@@ -296,6 +304,14 @@ export function BusquedaTurnosView({
               </div>
             ))}
           </div>
+          <Paginacion
+            pagina={paginacion.pagina}
+            totalPaginas={paginacion.totalPaginas}
+            total={paginacion.total}
+            desde={paginacion.desde}
+            hasta={paginacion.hasta}
+            onChange={paginacion.setPagina}
+          />
         </section>
       )}
 

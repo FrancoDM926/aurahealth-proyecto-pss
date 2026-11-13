@@ -22,6 +22,7 @@ import {
 import { SPECIALTY_LABELS } from "@/lib/roles";
 import { DOC_TYPES, ENTITY_OPTIONS } from "@/lib/validation";
 import type { MedicalSpecialty } from "@/generated/prisma/client";
+import { Paginacion, usePaginacion } from "@/components/paginacion";
 
 type Props = {
   initialData: DatosInicialesMostrador;
@@ -153,6 +154,7 @@ export function MostradorView({ initialData }: Props) {
       });
       if (res.success) {
         setPacientes(res.pacientes);
+        pagPacientes.volverAlInicio();
         if (res.pacientes.length === 0) {
           setMostrarFormAlta(true);
           if (docFiltro.trim() && !docNumber) setDocNumber(docFiltro.trim());
@@ -173,6 +175,7 @@ export function MostradorView({ initialData }: Props) {
     setApellidoFiltro("");
     setEmailFiltro("");
     setFeedback(null);
+    pagPacientes.volverAlInicio();
     setPacientes(
       filtrarPacientesMostrador(initialData.pacientes, {
         documento: "",
@@ -412,6 +415,30 @@ export function MostradorView({ initialData }: Props) {
     });
   };
 
+  // Paginación del lado del cliente de cada listado.
+  const pagPacientes = usePaginacion(pacientes, 8);
+  const pagDisponibles = usePaginacion(turnosDisponiblesFiltrados, 12);
+  const pagGestion = usePaginacion(turnosParaGestion, 8);
+  const pagAsistencia = usePaginacion(turnosAsistenciaYPago, 8);
+
+  const paginador = (p: {
+    pagina: number;
+    totalPaginas: number;
+    total: number;
+    desde: number;
+    hasta: number;
+    setPagina: (n: number) => void;
+  }) => (
+    <Paginacion
+      pagina={p.pagina}
+      totalPaginas={p.totalPaginas}
+      total={p.total}
+      desde={p.desde}
+      hasta={p.hasta}
+      onChange={p.setPagina}
+    />
+  );
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8 sm:px-10">
       <div>
@@ -450,122 +477,6 @@ export function MostradorView({ initialData }: Props) {
               : "+ Registrar paciente nuevo"}
           </button>
         </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="doc" className="text-xs font-semibold text-ink">
-              Documento
-            </label>
-            <input
-              id="doc"
-              type="text"
-              value={docFiltro}
-              onChange={(e) => setDocFiltro(e.target.value)}
-              placeholder="30.123.456"
-              className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink transition hover:border-primary/60 focus:border-primary focus:outline-none"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="ape" className="text-xs font-semibold text-ink">
-              Apellido
-            </label>
-            <input
-              id="ape"
-              type="text"
-              value={apellidoFiltro}
-              onChange={(e) => setApellidoFiltro(e.target.value)}
-              placeholder="García"
-              className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink transition hover:border-primary/60 focus:border-primary focus:outline-none"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="text-xs font-semibold text-ink">
-              Email
-            </label>
-            <input
-              id="email"
-              type="text"
-              value={emailFiltro}
-              onChange={(e) => setEmailFiltro(e.target.value)}
-              placeholder="nombre@correo.com"
-              className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink transition hover:border-primary/60 focus:border-primary focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={handleBuscarPacientes}
-            className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-50"
-          >
-            Buscar
-          </button>
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={handleLimpiarBusqueda}
-            className="cursor-pointer rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:border-ink-secondary hover:bg-neutral-50 disabled:opacity-50"
-          >
-            Limpiar
-          </button>
-        </div>
-
-        {/* Lista de pacientes encontrados */}
-        <ul className="mt-4 divide-y divide-line rounded-xl border border-line bg-white">
-          {pacientes.length === 0 ? (
-            <li className="flex flex-col items-start justify-between gap-2 px-4 py-3 text-sm text-ink-secondary sm:flex-row sm:items-center">
-              <span>
-                No se encontraron pacientes registrados con esos criterios.
-              </span>
-              <button
-                type="button"
-                onClick={() => setMostrarFormAlta(true)}
-                className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-dark"
-              >
-                Dar de alta paciente nuevo
-              </button>
-            </li>
-          ) : (
-            pacientes.slice(0, 8).map((p) => {
-              const esActivo = pacienteSeleccionado?.id === p.id;
-              return (
-                <li
-                  key={p.id}
-                  className={`flex flex-col items-start justify-between gap-2 px-4 py-2.5 text-sm sm:flex-row sm:items-center ${
-                    esActivo ? "bg-primary-light/40" : ""
-                  }`}
-                >
-                  <div>
-                    <span className="font-semibold text-ink">{p.fullName}</span>
-                    <span className="text-ink-secondary">
-                      {" "}
-                      — {p.docNumber ?? "Sin documento"} — {p.coberturaLabel}
-                    </span>
-                    <span className="ml-2 text-xs text-ink-secondary">
-                      ({p.email})
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => handleSeleccionarPaciente(p)}
-                    className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                      esActivo
-                        ? "border border-primary bg-primary text-white hover:bg-primary-dark"
-                        : "border border-line bg-white text-ink hover:border-primary hover:bg-primary-light/30"
-                    }`}
-                  >
-                    {esActivo ? "Seleccionado" : "Seleccionar"}
-                  </button>
-                </li>
-              );
-            })
-          )}
-        </ul>
 
         {/* Formulario inline de alta de paciente nuevo */}
         {mostrarFormAlta && (
@@ -796,6 +707,123 @@ export function MostradorView({ initialData }: Props) {
             </div>
           </form>
         )}
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="doc" className="text-xs font-semibold text-ink">
+              Documento
+            </label>
+            <input
+              id="doc"
+              type="text"
+              value={docFiltro}
+              onChange={(e) => setDocFiltro(e.target.value)}
+              placeholder="30.123.456"
+              className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink transition hover:border-primary/60 focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="ape" className="text-xs font-semibold text-ink">
+              Apellido
+            </label>
+            <input
+              id="ape"
+              type="text"
+              value={apellidoFiltro}
+              onChange={(e) => setApellidoFiltro(e.target.value)}
+              placeholder="García"
+              className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink transition hover:border-primary/60 focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="email" className="text-xs font-semibold text-ink">
+              Email
+            </label>
+            <input
+              id="email"
+              type="text"
+              value={emailFiltro}
+              onChange={(e) => setEmailFiltro(e.target.value)}
+              placeholder="nombre@correo.com"
+              className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink transition hover:border-primary/60 focus:border-primary focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={handleBuscarPacientes}
+            className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-50"
+          >
+            Buscar
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={handleLimpiarBusqueda}
+            className="cursor-pointer rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:border-ink-secondary hover:bg-neutral-50 disabled:opacity-50"
+          >
+            Limpiar
+          </button>
+        </div>
+
+        {/* Lista de pacientes encontrados */}
+        <ul className="mt-4 divide-y divide-line rounded-xl border border-line bg-white">
+          {pacientes.length === 0 ? (
+            <li className="flex flex-col items-start justify-between gap-2 px-4 py-3 text-sm text-ink-secondary sm:flex-row sm:items-center">
+              <span>
+                No se encontraron pacientes registrados con esos criterios.
+              </span>
+              <button
+                type="button"
+                onClick={() => setMostrarFormAlta(true)}
+                className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-dark"
+              >
+                Dar de alta paciente nuevo
+              </button>
+            </li>
+          ) : (
+            pagPacientes.items.map((p) => {
+              const esActivo = pacienteSeleccionado?.id === p.id;
+              return (
+                <li
+                  key={p.id}
+                  className={`flex flex-col items-start justify-between gap-2 px-4 py-2.5 text-sm sm:flex-row sm:items-center ${
+                    esActivo ? "bg-primary-light/40" : ""
+                  }`}
+                >
+                  <div>
+                    <span className="font-semibold text-ink">{p.fullName}</span>
+                    <span className="text-ink-secondary">
+                      {" "}
+                      — {p.docNumber ?? "Sin documento"} — {p.coberturaLabel}
+                    </span>
+                    <span className="ml-2 text-xs text-ink-secondary">
+                      ({p.email})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleSeleccionarPaciente(p)}
+                    className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                      esActivo
+                        ? "border border-primary bg-primary text-white hover:bg-primary-dark"
+                        : "border border-line bg-white text-ink hover:border-primary hover:bg-primary-light/30"
+                    }`}
+                  >
+                    {esActivo ? "Seleccionado" : "Seleccionar"}
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+        {paginador(pagPacientes)}
       </section>
 
       {/* SECCIÓN 2: RESERVAR UN TURNO (O ELEGIR NUEVO TURNO EN REPROGRAMACIÓN) */}
@@ -988,7 +1016,7 @@ export function MostradorView({ initialData }: Props) {
                   </td>
                 </tr>
               ) : (
-                turnosDisponiblesFiltrados.slice(0, 12).map((t) => (
+                pagDisponibles.items.map((t) => (
                   <tr key={t.id} className="hover:bg-neutral-50/80">
                     <td className="px-4 py-3 font-medium text-ink">
                       {t.fechaFormateada}
@@ -1018,6 +1046,7 @@ export function MostradorView({ initialData }: Props) {
             </tbody>
           </table>
         </div>
+        {paginador(pagDisponibles)}
       </section>
 
       {/* SECCIÓN 3: REPROGRAMAR O CANCELAR TURNOS DEL PACIENTE */}
@@ -1055,7 +1084,7 @@ export function MostradorView({ initialData }: Props) {
                   </td>
                 </tr>
               ) : (
-                turnosParaGestion.map((t) => {
+                pagGestion.items.map((t) => {
                   const enModoReprog = turnoAReprogramar?.id === t.id;
                   return (
                     <tr
@@ -1122,6 +1151,7 @@ export function MostradorView({ initialData }: Props) {
             </tbody>
           </table>
         </div>
+        {paginador(pagGestion)}
       </section>
 
       {/* SECCIÓN 4: MARCAR ASISTENCIA DE TURNOS YA OCURRIDOS */}
@@ -1161,7 +1191,7 @@ export function MostradorView({ initialData }: Props) {
                   </td>
                 </tr>
               ) : (
-                turnosAsistenciaYPago.map((t) => (
+                pagAsistencia.items.map((t) => (
                   <tr key={t.id} className="hover:bg-neutral-50/80">
                     <td className="px-4 py-3 font-medium text-ink">
                       {t.fechaFormateada}
@@ -1240,6 +1270,7 @@ export function MostradorView({ initialData }: Props) {
             </tbody>
           </table>
         </div>
+        {paginador(pagAsistencia)}
       </section>
     </div>
   );
