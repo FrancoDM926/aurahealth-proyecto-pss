@@ -27,6 +27,7 @@ import {
   validarReprogramacionMostrador,
   type AltaPacienteMostradorInput,
   type FiltrosBusquedaPacienteInput,
+  type PacienteMostradorRef,
   type OperacionMostradorAuditoriaItem,
   type PacienteMostradorItem,
   type TipoOperacionMostrador,
@@ -103,6 +104,7 @@ function mapearPacienteMostrador(u: {
   const coverageType = u.coverageType === "OBRA_SOCIAL" ? "OBRA_SOCIAL" : "PARTICULAR";
   return {
     id: u.id,
+    tipo: "USER",
     firstName: u.firstName,
     lastName: u.lastName,
     fullName: `${u.firstName} ${u.lastName}`.trim(),
@@ -119,6 +121,133 @@ function mapearPacienteMostrador(u: {
       healthInsuranceEntity: u.healthInsuranceEntity,
       healthInsurancePlan: u.healthInsurancePlan,
     }),
+  };
+}
+
+/**
+ * US-17: un tercero (`PersonaAtendida`) no tiene cuenta ni email propio. Se
+ * muestra como paciente del mostrador con la cobertura que declaró el titular y
+ * el email del titular como contacto.
+ */
+function mapearPersonaMostrador(p: {
+  id: string;
+  firstName: string;
+  lastName: string;
+  docNumber: string;
+  healthInsuranceEntity: string;
+  healthInsurancePlan: string;
+  healthInsuranceNumber: string;
+  user: { id: string; firstName: string; lastName: string; email: string };
+}): PacienteMostradorItem {
+  const titularNombre = `${p.user.firstName} ${p.user.lastName}`.trim();
+  return {
+    id: p.id,
+    tipo: "PERSONA",
+    titularId: p.user.id,
+    titularNombre,
+    firstName: p.firstName,
+    lastName: p.lastName,
+    fullName: `${p.firstName} ${p.lastName}`.trim(),
+    docType: "DNI",
+    docNumber: p.docNumber,
+    email: p.user.email,
+    phone: null,
+    // La cobertura de un tercero es siempre obra social (US-64 exige entidad,
+    // plan y número al cargarlo).
+    coverageType: "OBRA_SOCIAL",
+    healthInsuranceEntity: p.healthInsuranceEntity,
+    healthInsurancePlan: p.healthInsurancePlan,
+    healthInsuranceNumber: p.healthInsuranceNumber,
+    coberturaLabel: formatearCoberturaPaciente({
+      coverageType: "OBRA_SOCIAL",
+      healthInsuranceEntity: p.healthInsuranceEntity,
+      healthInsurancePlan: p.healthInsurancePlan,
+    }),
+  };
+}
+
+/**
+ * US-17: padrón unificado del mostrador — cuentas de paciente (`User`) y
+ * terceros (`PersonaAtendida`). Antes solo se buscaba en `User`, así que un
+ * tercero reservado desde la web desaparecía del mostrador.
+ */
+async function cargarPacientesMostrador(): Promise<PacienteMostradorItem[]> {
+  const [usuarios, personas] = await Promise.all([
+    db.user.findMany({
+      where: { role: "USUARIO", isActive: true },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      take: 200,
+    }),
+    db.personaAtendida.findMany({
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true, email: true, isActive: true },
+        },
+      },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      take: 300,
+    }),
+  ]);
+
+  const pacientes = usuarios.map(mapearPacienteMostrador);
+  for (const persona of personas) {
+    // El tercero depende de la cuenta del titular: si el titular está dado de
+    // baja, tampoco se ofrece en el mostrador.
+    if (!persona.user.isActive) continue;
+    pacientes.push(mapearPersonaMostrador(persona));
+  }
+
+  return pacientes.sort((a, b) =>
+    `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, "es")
+  );
+}
+
+type PacienteMostradorResuelto = {
+  /** Fila del padrón unificado (el id es el del `User` o el de la persona). */
+  paciente: PacienteMostradorItem;
+  /** `User.id` titular de la cuenta: `reservedById`, emails y permisos. */
+  titularId: string;
+  /** `PersonaAtendida.id` cuando se eligió un tercero. */
+  personaId: string | null;
+  titularEmail: string;
+};
+
+/**
+ * Resuelve una referencia del mostrador a las tres piezas que necesitan las
+ * acciones: la fila visible, el titular de la cuenta y, si es un tercero, el id
+ * de la persona atendida.
+ */
+async function resolverPacienteMostrador(
+  ref: PacienteMostradorRef | undefined
+): Promise<PacienteMostradorResuelto | null> {
+  const id = (ref?.id ?? "").trim();
+  if (!id) return null;
+
+  if (ref?.tipo === "PERSONA") {
+    const persona = await db.personaAtendida.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true, email: true, isActive: true },
+        },
+      },
+    });
+    if (!persona || !persona.user.isActive) return null;
+    return {
+      paciente: mapearPersonaMostrador(persona),
+      titularId: persona.user.id,
+      personaId: persona.id,
+      titularEmail: persona.user.email,
+    };
+  }
+
+  const user = await db.user.findUnique({ where: { id } });
+  if (!user || user.role !== "USUARIO" || !user.isActive) return null;
+  return {
+    paciente: mapearPacienteMostrador(user),
+    titularId: user.id,
+    personaId: null,
+    titularEmail: user.email,
   };
 }
 
@@ -193,7 +322,19 @@ async function asegurarTurnosVacunatorioDisponibles(hoy: string): Promise<void> 
   }
 }
 
-async function cargarTurnosDePaciente(pacienteId: string) {
+async function cargarTurnosDePaciente(
+  titularId: string,
+  personaId?: string | null
+) {
+  // US-17: para un tercero se cargan los turnos del titular y los de la persona;
+  // para una cuenta, solo los suyos.
+  const whereMedicos = personaId
+    ? { OR: [{ reservedById: titularId }, { personaAtendidaId: personaId }] }
+    : { reservedById: titularId };
+  const whereVacunacion = personaId
+    ? { OR: [{ reservedById: titularId }, { personaAtendidaId: personaId }] }
+    : { reservedById: titularId };
+
   const ahora = ahoraEnArgentina();
   const [
     turnosMedicos,
@@ -202,7 +343,7 @@ async function cargarTurnosDePaciente(pacienteId: string) {
     cancelacionesVacunacion,
   ] = await Promise.all([
     db.turno.findMany({
-      where: { reservedById: pacienteId },
+      where: whereMedicos,
       include: {
         doctor: {
           select: {
@@ -222,7 +363,7 @@ async function cargarTurnosDePaciente(pacienteId: string) {
       orderBy: [{ date: "desc" }, { startTime: "desc" }],
     }),
     db.turnoCancelacion.findMany({
-      where: { reservedById: pacienteId },
+      where: { reservedById: titularId },
       include: {
         turno: {
           select: {
@@ -244,7 +385,7 @@ async function cargarTurnosDePaciente(pacienteId: string) {
       orderBy: [{ date: "desc" }, { startTime: "desc" }],
     }),
     db.turnoVacunacion.findMany({
-      where: { reservedById: pacienteId },
+      where: whereVacunacion,
       include: {
         vacuna: {
           select: {
@@ -262,7 +403,7 @@ async function cargarTurnosDePaciente(pacienteId: string) {
       orderBy: [{ date: "desc" }, { startTime: "desc" }],
     }),
     db.turnoVacunacionCancelacion.findMany({
-      where: { reservedById: pacienteId },
+      where: { reservedById: titularId },
       include: {
         turno: {
           select: { id: true, status: true },
@@ -508,11 +649,7 @@ export async function obtenerDatosInicialesMostrador(params?: {
     turnosDisponibles,
     operacionesRecientes,
   ] = await Promise.all([
-    db.user.findMany({
-      where: { role: "USUARIO", isActive: true },
-      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-      take: 40,
-    }),
+    cargarPacientesMostrador(),
     db.user.findMany({
       where: {
         role: "MEDICO",
@@ -559,13 +696,17 @@ export async function obtenerDatosInicialesMostrador(params?: {
   if (targetPacienteId) {
     const encontrado =
       pacientes.find((p) => p.id === targetPacienteId) ??
-      (await db.user
-        .findUnique({ where: { id: targetPacienteId } })
-        .then((u) => (u && u.role === "USUARIO" ? mapearPacienteMostrador(u) : null)));
+      (await resolverPacienteMostrador({ tipo: "USER", id: targetPacienteId }))?.paciente ??
+      (await resolverPacienteMostrador({ tipo: "PERSONA", id: targetPacienteId }))?.paciente ??
+      null;
 
     if (encontrado) {
       pacienteSeleccionado = encontrado;
-      const clasificados = await cargarTurnosDePaciente(encontrado.id);
+      const esTercero = encontrado.tipo === "PERSONA";
+      const clasificados = await cargarTurnosDePaciente(
+        esTercero ? encontrado.titularId ?? "" : encontrado.id,
+        esTercero ? encontrado.id : null
+      );
       turnosParaGestion = clasificados.turnosParaGestion;
       turnosAsistenciaYPago = clasificados.turnosAsistenciaYPago;
     }
@@ -619,14 +760,8 @@ export async function buscarPacientesMostradorAction(
     };
   }
 
-  const todos = await db.user.findMany({
-    where: { role: "USUARIO", isActive: true },
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    take: 200,
-  });
-
-  const mapeados = todos.map(mapearPacienteMostrador);
-  const filtrados = filtrarPacientesMostrador(mapeados, filtros);
+  const todos = await cargarPacientesMostrador();
+  const filtrados = filtrarPacientesMostrador(todos, filtros);
 
   return {
     success: true,
@@ -634,7 +769,7 @@ export async function buscarPacientesMostradorAction(
   };
 }
 
-export async function seleccionarPacienteMostradorAction(pacienteId: string): Promise<{
+export async function seleccionarPacienteMostradorAction(ref: PacienteMostradorRef): Promise<{
   success: boolean;
   paciente?: PacienteMostradorItem;
   turnosParaGestion?: TurnoPacienteMostradorItem[];
@@ -651,18 +786,18 @@ export async function seleccionarPacienteMostradorAction(pacienteId: string): Pr
     };
   }
 
-  const user = await db.user.findUnique({ where: { id: pacienteId.trim() } });
-  if (!user || user.role !== "USUARIO") {
+  const resuelto = await resolverPacienteMostrador(ref);
+  if (!resuelto) {
     return {
       success: false,
       message: "El paciente seleccionado no existe.",
     };
   }
 
-  const paciente = mapearPacienteMostrador(user);
+  const { paciente, titularId, personaId } = resuelto;
   const [{ turnosParaGestion, turnosAsistenciaYPago }, operacionesRecientes] = await Promise.all([
-    cargarTurnosDePaciente(user.id),
-    cargarOperacionesRecientes(user.id),
+    cargarTurnosDePaciente(titularId, personaId),
+    cargarOperacionesRecientes(paciente.id),
   ]);
 
   return {
@@ -838,7 +973,7 @@ export async function registrarPacienteMostradorAction(
  * confirmación correspondiente y deja registrada la operación con el usuario administrativo.
  */
 export async function reservarTurnoMostradorAction(input: {
-  pacienteId: string;
+  paciente: PacienteMostradorRef;
   turnoId: string;
   tipoTurno: TipoTurnoMostrador;
   vacunaId?: string;
@@ -861,17 +996,17 @@ export async function reservarTurnoMostradorAction(input: {
     };
   }
 
-  const pacienteId = (input.pacienteId ?? "").trim();
   const turnoId = (input.turnoId ?? "").trim();
-  if (!pacienteId || !turnoId) {
+  if (!input.paciente || !turnoId) {
     return { success: false, message: "Seleccioná un paciente y un turno disponible." };
   }
 
   try {
-    const paciente = await db.user.findUnique({ where: { id: pacienteId } });
-    if (!paciente || paciente.role !== "USUARIO") {
+    const resuelto = await resolverPacienteMostrador(input.paciente);
+    if (!resuelto) {
       return { success: false, message: "El paciente seleccionado no es válido." };
     }
+    const { paciente, titularId, personaId } = resuelto;
 
     const actorNombre = formatearAutorCambioEstado({
       firstName: actorProfile.firstName,
@@ -923,8 +1058,9 @@ export async function reservarTurnoMostradorAction(input: {
         turnoId: turnoVac.id,
         vacunaId: vacuna.id,
         dosisPrevistaOrden: input.dosisPrevistaOrden ?? null,
-        titularId: paciente.id,
+        titularId,
         otorgadoPorId: actorProfile.id,
+        paraOtraPersona: personaId ? { personaId } : undefined,
       });
 
       if (!resVac.success) {
@@ -1003,10 +1139,10 @@ export async function reservarTurnoMostradorAction(input: {
         },
         data: {
           status: "RESERVADO",
-          reservedById: paciente.id,
-          personaAtendidaId: null,
-          patientFirstName: null,
-          patientLastName: null,
+          reservedById: titularId,
+          personaAtendidaId: personaId,
+          patientFirstName: personaId ? paciente.firstName : null,
+          patientLastName: personaId ? paciente.lastName : null,
           motivoConsulta: motivoLimpio,
           reservedAt: new Date(),
         },
@@ -1077,7 +1213,7 @@ export async function reservarTurnoMostradorAction(input: {
  * envía el email de aviso de cancelación y registra quién realizó la operación.
  */
 export async function cancelarTurnoMostradorAction(input: {
-  pacienteId: string;
+  paciente: PacienteMostradorRef;
   turnoId: string;
   tipoTurno?: TipoTurnoMostrador;
   motivo?: string;
@@ -1098,17 +1234,17 @@ export async function cancelarTurnoMostradorAction(input: {
     };
   }
 
-  const pacienteId = (input.pacienteId ?? "").trim();
   const turnoId = (input.turnoId ?? "").trim();
-  if (!pacienteId || !turnoId) {
+  if (!input.paciente || !turnoId) {
     return { success: false, message: "Datos de turno o paciente inválidos." };
   }
 
   try {
-    const paciente = await db.user.findUnique({ where: { id: pacienteId } });
-    if (!paciente) {
+    const resuelto = await resolverPacienteMostrador(input.paciente);
+    if (!resuelto) {
       return { success: false, message: "El paciente no existe." };
     }
+    const { paciente, titularId } = resuelto;
 
     const actorNombre = formatearAutorCambioEstado({
       firstName: actorProfile.firstName,
@@ -1130,7 +1266,7 @@ export async function cancelarTurnoMostradorAction(input: {
       const resCancVac = await cancelarTurnoVacunacion({
         turnoId: turnoVac.id,
         canceladoPorId: actorProfile.id,
-        soloDelTitularId: paciente.id,
+        soloDelTitularId: titularId,
         validarPlazo: false,
       });
 
@@ -1180,7 +1316,7 @@ export async function cancelarTurnoMostradorAction(input: {
       return { success: false, message: "El turno no existe." };
     }
 
-    if (turno.status !== "RESERVADO" || turno.reservedById !== paciente.id) {
+    if (turno.status !== "RESERVADO" || turno.reservedById !== titularId) {
       return {
         success: false,
         message: "Solo se puede cancelar un turno reservado del paciente seleccionado.",
@@ -1216,7 +1352,7 @@ export async function cancelarTurnoMostradorAction(input: {
       await tx.turnoCancelacion.create({
         data: {
           turnoId: turno.id,
-          reservedById: paciente.id,
+          reservedById: titularId,
           doctorNombre: profNombre,
           date: turno.date,
           startTime: turno.startTime,
@@ -1254,7 +1390,7 @@ export async function cancelarTurnoMostradorAction(input: {
 
     await enviarNotificacionCancelacionMedicoMostrador({
       pacienteNombre,
-      pacienteEmail: paciente.email,
+      pacienteEmail: resuelto.titularEmail,
       doctorNombre: profNombre,
       especialidad: turno.doctor.specialty
         ? SPECIALTY_LABELS[turno.doctor.specialty]
@@ -1292,7 +1428,7 @@ export async function cancelarTurnoMostradorAction(input: {
  * 4) Envía al paciente el email correspondiente.
  */
 export async function reprogramarTurnoMostradorAction(input: {
-  pacienteId: string;
+  paciente: PacienteMostradorRef;
   turnoOriginalId: string;
   turnoNuevoId: string;
   tipoTurno?: TipoTurnoMostrador;
@@ -1316,11 +1452,10 @@ export async function reprogramarTurnoMostradorAction(input: {
     };
   }
 
-  const pacienteId = (input.pacienteId ?? "").trim();
   const turnoOriginalId = (input.turnoOriginalId ?? "").trim();
   const turnoNuevoId = (input.turnoNuevoId ?? "").trim();
 
-  if (!pacienteId || !turnoOriginalId || !turnoNuevoId) {
+  if (!input.paciente || !turnoOriginalId || !turnoNuevoId) {
     return {
       success: false,
       message: "Seleccioná el turno a reprogramar y el nuevo horario disponible.",
@@ -1328,10 +1463,11 @@ export async function reprogramarTurnoMostradorAction(input: {
   }
 
   try {
-    const paciente = await db.user.findUnique({ where: { id: pacienteId } });
-    if (!paciente) {
+    const resuelto = await resolverPacienteMostrador(input.paciente);
+    if (!resuelto) {
       return { success: false, message: "El paciente seleccionado no existe." };
     }
+    const { paciente, titularId, personaId } = resuelto;
 
     const ahora = ahoraEnArgentina();
     const actorNombre = formatearAutorCambioEstado({
@@ -1401,7 +1537,7 @@ export async function reprogramarTurnoMostradorAction(input: {
       const resCancel = await cancelarTurnoVacunacion({
         turnoId: turnoVacOriginal.id,
         canceladoPorId: actorProfile.id,
-        soloDelTitularId: paciente.id,
+        soloDelTitularId: titularId,
         validarPlazo: false,
       });
 
@@ -1418,8 +1554,9 @@ export async function reprogramarTurnoMostradorAction(input: {
         vacunaId: vacunaFinalId,
         dosisPrevistaOrden:
           input.dosisPrevistaOrden ?? turnoVacOriginal.dosisPrevistaOrden ?? null,
-        titularId: paciente.id,
+        titularId,
         otorgadoPorId: actorProfile.id,
+        paraOtraPersona: personaId ? { personaId } : undefined,
       });
 
       const fechaOriginalAr = formatearFechaAr(fechaOriginalIso);
@@ -1530,7 +1667,7 @@ export async function reprogramarTurnoMostradorAction(input: {
         where: {
           id: turnoOriginal.id,
           status: "RESERVADO",
-          reservedById: paciente.id,
+          reservedById: titularId,
         },
         data: {
           status: "DISPONIBLE",
@@ -1555,7 +1692,7 @@ export async function reprogramarTurnoMostradorAction(input: {
       await tx.turnoCancelacion.create({
         data: {
           turnoId: turnoOriginal.id,
-          reservedById: paciente.id,
+          reservedById: titularId,
           doctorNombre: profOriginalNombre,
           date: turnoOriginal.date,
           startTime: turnoOriginal.startTime,
@@ -1574,8 +1711,8 @@ export async function reprogramarTurnoMostradorAction(input: {
         },
         data: {
           status: "RESERVADO",
-          reservedById: paciente.id,
-          personaAtendidaId: turnoOriginal.personaAtendidaId,
+          reservedById: titularId,
+          personaAtendidaId: turnoOriginal.personaAtendidaId ?? personaId,
           patientFirstName: turnoOriginal.patientFirstName ?? paciente.firstName,
           patientLastName: turnoOriginal.patientLastName ?? paciente.lastName,
           motivoConsulta: motivoFinal,
@@ -1637,7 +1774,7 @@ export async function reprogramarTurnoMostradorAction(input: {
     await Promise.all([
       enviarNotificacionCancelacionMedicoMostrador({
         pacienteNombre,
-        pacienteEmail: paciente.email,
+        pacienteEmail: resuelto.titularEmail,
         doctorNombre: profOriginalNombre,
         especialidad: turnoOriginal.doctor.specialty
           ? SPECIALTY_LABELS[turnoOriginal.doctor.specialty]
@@ -1680,7 +1817,7 @@ export async function reprogramarTurnoMostradorAction(input: {
  * (Sección 4 del wireframe `wf_mostrador.html`, integrado con US-18 y Pagos US-34/35).
  */
 export async function marcarAsistenciaMostradorAction(input: {
-  pacienteId: string;
+  paciente: PacienteMostradorRef;
   turnoId: string;
   nuevoEstado: "CUMPLIDO" | "AUSENTE";
 }): Promise<{
@@ -1713,12 +1850,11 @@ export async function marcarAsistenciaMostradorAction(input: {
   }
 
   try {
-    const [paciente, turno] = await Promise.all([
-      db.user.findUnique({ where: { id: input.pacienteId } }),
-      db.turno.findUnique({ where: { id: input.turnoId }, include: { doctor: true } }),
-    ]);
+    const resuelto = await resolverPacienteMostrador(input.paciente);
+    const turno = await db.turno.findUnique({ where: { id: input.turnoId }, include: { doctor: true } });
 
-    if (paciente && turno) {
+    if (resuelto && turno) {
+      const { paciente } = resuelto;
       const actorNombre = formatearAutorCambioEstado({
         firstName: actorProfile.firstName,
         lastName: actorProfile.lastName,

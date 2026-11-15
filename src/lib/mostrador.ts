@@ -55,6 +55,15 @@ export type FiltrosBusquedaPacienteInput = {
 
 export type PacienteMostradorItem = {
   id: string;
+  /**
+   * US-17: de dónde sale el paciente. `USER` es una cuenta registrada;
+   * `PERSONA` es un tercero guardado en `PersonaAtendida` a nombre de un
+   * titular. Ausente en los datos antiguos = `USER`.
+   */
+  tipo?: "USER" | "PERSONA";
+  /** Titular de la cuenta cuando `tipo` es `PERSONA`. */
+  titularId?: string | null;
+  titularNombre?: string | null;
   firstName: string;
   lastName: string;
   fullName: string;
@@ -68,6 +77,21 @@ export type PacienteMostradorItem = {
   healthInsuranceNumber: string | null;
   coberturaLabel: string;
 };
+
+/**
+ * Referencia serializable a un paciente del mostrador: sirve para el `User`
+ * titular y para un tercero de `PersonaAtendida`, sin inventar cuentas.
+ */
+export type PacienteMostradorRef =
+  | { tipo: "USER"; id: string }
+  | { tipo: "PERSONA"; id: string };
+
+/** Referencia de un paciente ya listado, para enviarla a las server actions. */
+export function refPacienteMostrador(
+  paciente: Pick<PacienteMostradorItem, "id" | "tipo">
+): PacienteMostradorRef {
+  return { tipo: paciente.tipo === "PERSONA" ? "PERSONA" : "USER", id: paciente.id };
+}
 
 export type AltaPacienteMostradorInput = {
   firstName: string;
@@ -175,6 +199,18 @@ export function formatearCoberturaPaciente(paciente: {
   return "Particular";
 }
 
+/**
+ * US-17: etiqueta «A cargo de …» para un tercero del mostrador. Devuelve `null`
+ * cuando el paciente es una cuenta propia.
+ */
+export function detalleTitularPaciente(
+  paciente: Pick<PacienteMostradorItem, "tipo" | "titularNombre">
+): string | null {
+  if (paciente.tipo !== "PERSONA") return null;
+  const titular = paciente.titularNombre?.trim();
+  return titular ? `A cargo de ${titular}` : "A cargo de otra cuenta";
+}
+
 export function formatearProfesionalMostrador(prof: {
   firstName: string;
   lastName: string;
@@ -208,7 +244,14 @@ export function filtrarPacientesMostrador(
     if (apeQuery) {
       const apePaciente = normalizarSinAcentos(p.lastName);
       const fullPaciente = normalizarSinAcentos(p.fullName);
-      if (!apePaciente.includes(apeQuery) && !fullPaciente.includes(apeQuery)) {
+      // US-17: un tercero se puede buscar también por el apellido del titular,
+      // para encontrarlo cuando no se recuerda el nombre del paciente.
+      const titularPaciente = normalizarSinAcentos(p.titularNombre ?? "");
+      if (
+        !apePaciente.includes(apeQuery) &&
+        !fullPaciente.includes(apeQuery) &&
+        !titularPaciente.includes(apeQuery)
+      ) {
         return false;
       }
     }

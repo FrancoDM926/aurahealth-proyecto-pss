@@ -16,6 +16,8 @@ import {
 import {
   filtrarPacientesMostrador,
   filtrarTurnosDisponiblesMostrador,
+  refPacienteMostrador,
+  detalleTitularPaciente,
   type PacienteMostradorItem,
   type TipoTurnoMostrador,
   type TurnoPacienteMostradorItem,
@@ -182,7 +184,7 @@ export function MostradorView({ initialData }: Props) {
     setTurnoAReprogramar(null);
     setPacienteSeleccionado(paciente);
     startTransition(async () => {
-      const res = await seleccionarPacienteMostradorAction(paciente.id);
+      const res = await seleccionarPacienteMostradorAction(refPacienteMostrador(paciente));
       if (res.success && res.paciente) {
         setPacienteSeleccionado(res.paciente);
         setTurnosParaGestion(res.turnosParaGestion ?? []);
@@ -283,7 +285,7 @@ export function MostradorView({ initialData }: Props) {
     if (turnoAReprogramar) {
       startTransition(async () => {
         const res = await reprogramarTurnoMostradorAction({
-          pacienteId: pacienteSeleccionado.id,
+          paciente: refPacienteMostrador(pacienteSeleccionado),
           turnoOriginalId: turnoAReprogramar.id,
           turnoNuevoId: turnoDisponibleId,
           tipoTurno,
@@ -302,7 +304,7 @@ export function MostradorView({ initialData }: Props) {
         setTurnoAReprogramar(null);
         setMotivoConsulta("");
         const recarga = await seleccionarPacienteMostradorAction(
-          pacienteSeleccionado.id
+          refPacienteMostrador(pacienteSeleccionado)
         );
         if (recarga.success) {
           setTurnosParaGestion(recarga.turnosParaGestion ?? []);
@@ -316,7 +318,7 @@ export function MostradorView({ initialData }: Props) {
 
     startTransition(async () => {
       const res = await reservarTurnoMostradorAction({
-        pacienteId: pacienteSeleccionado.id,
+        paciente: refPacienteMostrador(pacienteSeleccionado),
         turnoId: turnoDisponibleId,
         tipoTurno,
         vacunaId: tipoTurno === "VACUNACION" ? vacunaId : undefined,
@@ -333,7 +335,7 @@ export function MostradorView({ initialData }: Props) {
 
       setMotivoConsulta("");
       const recarga = await seleccionarPacienteMostradorAction(
-        pacienteSeleccionado.id
+        refPacienteMostrador(pacienteSeleccionado)
       );
       if (recarga.success) {
         setTurnosParaGestion(recarga.turnosParaGestion ?? []);
@@ -350,7 +352,7 @@ export function MostradorView({ initialData }: Props) {
 
     startTransition(async () => {
       const res = await cancelarTurnoMostradorAction({
-        pacienteId: pacienteSeleccionado.id,
+        paciente: refPacienteMostrador(pacienteSeleccionado),
         turnoId: turno.id,
         tipoTurno: turno.tipoTurno,
       });
@@ -365,7 +367,7 @@ export function MostradorView({ initialData }: Props) {
       }
 
       const recarga = await seleccionarPacienteMostradorAction(
-        pacienteSeleccionado.id
+        refPacienteMostrador(pacienteSeleccionado)
       );
       if (recarga.success) {
         setTurnosParaGestion(recarga.turnosParaGestion ?? []);
@@ -385,7 +387,7 @@ export function MostradorView({ initialData }: Props) {
 
     startTransition(async () => {
       const res = await marcarAsistenciaMostradorAction({
-        pacienteId: pacienteSeleccionado.id,
+        paciente: refPacienteMostrador(pacienteSeleccionado),
         turnoId,
         nuevoEstado,
       });
@@ -396,7 +398,7 @@ export function MostradorView({ initialData }: Props) {
       }
 
       const recarga = await seleccionarPacienteMostradorAction(
-        pacienteSeleccionado.id
+        refPacienteMostrador(pacienteSeleccionado)
       );
       if (recarga.success) {
         setTurnosParaGestion(recarga.turnosParaGestion ?? []);
@@ -790,6 +792,11 @@ export function MostradorView({ initialData }: Props) {
                 >
                   <div>
                     <span className="font-semibold text-ink">{p.fullName}</span>
+                    {detalleTitularPaciente(p) && (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                        {detalleTitularPaciente(p)}
+                      </span>
+                    )}
                     <span className="text-ink-secondary">
                       {" "}
                       — {p.docNumber ?? "Sin documento"} — {p.coberturaLabel}

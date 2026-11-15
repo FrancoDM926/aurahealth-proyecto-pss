@@ -4,9 +4,11 @@ import {
   MENSAJE_TURNO_PASADO_MOSTRADOR,
   TIPO_OPERACION_LABELS,
   construirTurnosPacienteMostrador,
+  detalleTitularPaciente,
   filtrarPacientesMostrador,
   filtrarTurnosDisponiblesMostrador,
   formatearCoberturaPaciente,
+  refPacienteMostrador,
   resolverTipoTurnoPorRol,
   validarAltaPacienteMostrador,
   validarHorarioReservableMostrador,
@@ -491,5 +493,77 @@ describe("US-17 — horarios ya pasados del día en mostrador", () => {
         "No se puede reprogramar hacia un turno cuyo horario ya pasó."
       );
     }
+  });
+});
+
+
+describe("US-17 — terceros en el padrón de mostrador", () => {
+  const personas: PacienteMostradorItem[] = [
+    {
+      id: "per-mollo",
+      tipo: "PERSONA",
+      titularId: "titular-1",
+      titularNombre: "Manuel Mollo",
+      firstName: "Manuel",
+      lastName: "Mollo",
+      fullName: "Manuel Mollo",
+      docType: "DNI",
+      docNumber: "40123456",
+      email: "titular@correo.com",
+      phone: null,
+      coverageType: "OBRA_SOCIAL",
+      healthInsuranceEntity: "OSDE",
+      healthInsurancePlan: "210",
+      healthInsuranceNumber: "9988",
+      coberturaLabel: "OSDE (210)",
+    },
+    {
+      id: "usr-1",
+      tipo: "USER",
+      firstName: "Ana",
+      lastName: "Gómez",
+      fullName: "Ana Gómez",
+      docType: "DNI",
+      docNumber: "30111222",
+      email: "ana@correo.com",
+      phone: "221 555-0000",
+      coverageType: "PARTICULAR",
+      healthInsuranceEntity: null,
+      healthInsurancePlan: null,
+      healthInsuranceNumber: null,
+      coberturaLabel: "Particular",
+    },
+  ];
+
+  it("encuentra a un tercero por apellido del paciente", () => {
+    const res = filtrarPacientesMostrador(personas, { apellido: "Mollo" });
+    assert.equal(res.length, 1);
+    assert.equal(res[0].id, "per-mollo");
+  });
+
+  it("encuentra a un tercero por documento", () => {
+    const res = filtrarPacientesMostrador(personas, { documento: "40.123.456" });
+    assert.equal(res.length, 1);
+    assert.equal(res[0].id, "per-mollo");
+  });
+
+  it("encuentra a un tercero por el apellido del titular", () => {
+    const res = filtrarPacientesMostrador(personas, { apellido: "Mollo" });
+    assert.equal(res.length, 1);
+  });
+
+  it("muestra la etiqueta «A cargo de …» solo para terceros", () => {
+    assert.equal(detalleTitularPaciente(personas[0]), "A cargo de Manuel Mollo");
+    assert.equal(detalleTitularPaciente(personas[1]), null);
+  });
+
+  it("refPacienteMostrador arma una referencia serializable", () => {
+    assert.deepEqual(refPacienteMostrador(personas[0]), { tipo: "PERSONA", id: "per-mollo" });
+    assert.deepEqual(refPacienteMostrador(personas[1]), { tipo: "USER", id: "usr-1" });
+  });
+
+  it("un paciente sin tipo se considera una cuenta (USER)", () => {
+    const sinTipo: PacienteMostradorItem = { ...personas[1], tipo: undefined };
+    assert.deepEqual(refPacienteMostrador(sinTipo), { tipo: "USER", id: "usr-1" });
   });
 });

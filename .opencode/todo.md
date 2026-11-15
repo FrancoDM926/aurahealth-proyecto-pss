@@ -269,3 +269,36 @@ día y que la acción los rechace aunque la llamada no venga de la UI. Fuente:
 
 ## Pendiente (requiere base y sesión de mostrador)
 - Verificar en el navegador que la tabla no muestre el horario ya pasado y que la reserva de un horario futuro siga funcionando. No ejecutado: Neon inalcanzable desde este entorno.
+
+---
+
+# Sprint 3 — corrección 5: US-17, terceros en el padrón de mostrador — COMPLETADA
+
+Objetivo: que un tercero reservado desde la web (Manuel Mollo) se pueda
+encontrar, seleccionar, reservar, reprogramar, cancelar y marcar asistencia
+desde mostrador, sin crear cuentas duplicadas, y que el cobro use su cobertura.
+Fuente: `ctxt/plan-correcciones-sprint-3.md` §3.5.
+
+## M1: Padrón unificado — status: completed
+- [x] S1.1.1: `PacienteMostradorItem` extendido con `tipo`, `titularId`, `titularNombre` (opcionales, retrocompatible)
+- [x] S1.1.2: `mapearPersonaMostrador()` y `cargarPacientesMostrador()` (User + PersonaAtendida), omitiendo titulares dados de baja
+- [x] S1.1.3: `buscarPacientesMostradorAction` y `obtenerDatosInicialesMostrador` usan el padrón unificado
+- [x] S1.1.4: `filtrarPacientesMostrador` también busca por apellido del titular
+- [x] S1.1.5: `detalleTitularPaciente()` → «A cargo de …» (UI con badge ámbar)
+
+## M2: Referencia serializable y resolución — status: completed
+- [x] S2.1.1: `PacienteMostradorRef` + `refPacienteMostrador()` en `src/lib/mostrador.ts`
+- [x] S2.1.2: `resolverPacienteMostrador(ref)` devuelve fila, titular y persona
+- [x] S2.1.3: `seleccionarPacienteMostradorAction(ref)` y `cargarTurnosDePaciente(titularId, personaId)` con `OR` titular/persona
+
+## M3: Operaciones sobre terceros — status: completed
+- [x] S3.1.1: `reservarTurnoMostradorAction` setea `reservedById = titular`, `personaAtendidaId = persona`, nombres copiados y `paraOtraPersona` en vacunación
+- [x] S3.1.2: cancelar/reprogramar/marcar asistencia resuelven el titular y conservan `personaAtendidaId` en la reprogramación
+- [x] S3.1.3: emails usan el correo del titular; logs con el id del seleccionado
+
+## M4: Pruebas y verificación — status: completed
+- [x] S4.1.1: `tests/us17-mostrador.test.ts` +6 pruebas (búsqueda por apellido/documento/titular, etiqueta, referencia, default USER)
+- [x] S4.1.2: `npm test` → 359/359 verdes · `npm run typecheck` sin errores · `npm run lint` solo los 8 problemas preexistentes · `npx next build` exitoso
+
+## Pendiente (requiere base y sesión de mostrador)
+- Verificar en el navegador: buscar a Manuel Mollo por apellido/documento, reservar/reprogramar/cancelar/marcar asistencia y cobrar con su cobertura. No ejecutado: Neon inalcanzable desde este entorno.
