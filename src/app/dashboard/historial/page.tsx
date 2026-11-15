@@ -9,7 +9,7 @@ import {
   Hint,
   INPUT_CLASS,
 } from "@/components/pagos-ui";
-import { requireRoles } from "@/lib/auth-session";
+import { requireRolesAuditado } from "@/services/historial/acceso-auditado";
 import { todayInArgentina } from "@/lib/availability-rn02";
 import { normalizarFiltrosHistorial } from "@/lib/historial";
 import {
@@ -42,8 +42,14 @@ type PageProps = {
  * lectura; la edición vive en US-39.
  */
 export default async function HistorialPage({ searchParams }: PageProps) {
-  const { role, profile } = await requireRoles(["MEDICO"]);
-  const filtros = normalizarFiltrosHistorial(await searchParams, todayInArgentina());
+  const params = await searchParams;
+  // RNF-04 / US-44: si el rol no puede ver fichas, el intento queda auditado
+  // como RECHAZADO antes de redirigir.
+  const { role, profile } = await requireRolesAuditado(["MEDICO"], {
+    tipo: "FICHA_CONSOLIDADA",
+    pacienteNombre: params.paciente?.trim() || undefined,
+  });
+  const filtros = normalizarFiltrosHistorial(params, todayInArgentina());
 
   const [opciones, fichas] = await Promise.all([
     opcionesFiltrosHistorial(),

@@ -1,7 +1,7 @@
 import { DashboardShell } from "@/components/dashboard-shell";
 import { HistorialEntradaCard } from "@/components/historial-entrada-card";
 import { Bloque, Callout, Hint } from "@/components/pagos-ui";
-import { requireRoles } from "@/lib/auth-session";
+import { requireRolesAuditado } from "@/services/historial/acceso-auditado";
 import { consultarHistorialPaciente } from "@/services/historial/consultas";
 import { registrarAccesoHistorial } from "@/services/historial/auditoria";
 
@@ -22,7 +22,11 @@ type PageProps = {
  * información; un intento sobre otro paciente se rechaza y queda auditado.
  */
 export default async function MiHistorialPage({ searchParams }: PageProps) {
-  const { role, profile } = await requireRoles(["USUARIO"]);
+  // US-44: un rol que no corresponde (Enfermería, Administrativo, Médico) queda
+  // auditado como RECHAZADO antes de salir de la pantalla.
+  const { role, profile } = await requireRolesAuditado(["USUARIO"], {
+    tipo: "HISTORIAL_PACIENTE",
+  });
   const { paciente } = await searchParams;
 
   const actor = {

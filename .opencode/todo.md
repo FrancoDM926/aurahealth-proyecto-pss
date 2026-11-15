@@ -214,3 +214,33 @@ mostrador. Fuente: `ctxt/plan-correcciones-sprint-3.md` §3.2.
 - La advertencia «La obra social X no figura en el listado…» ya existía en `/dashboard/pagos/[turnoId]` y ahora se dispara solo cuando corresponde.
 - `npm run backfill:coberturas` (simulación por defecto, `--apply` para escribir) no se pudo ejecutar: Neon inalcanzable desde este entorno (`ECONNREFUSED`).
 - Reproducción con datos reales (paciente con email real + OSDE → cobro con descuento) pendiente por el mismo motivo.
+
+---
+
+# Sprint 3 — corrección 3: US-44, auditoría de accesos incompleta — COMPLETADA
+
+Objetivo: que el log del administrador muestre los accesos del Paciente Pérez
+(exitoso) y los intentos rechazados de Enfermero Pérez y del Administrativo, y
+que los tres se puedan elegir en el filtro «Usuario». Fuente:
+`ctxt/plan-correcciones-sprint-3.md` §3.3.
+
+## M1: Rechazos por rol auditados — status: completed
+- [x] S1.1.1: `requireRolesAuditado(allowed, contexto)` en `src/services/historial/acceso-auditado.ts`: escribe `RECHAZADO` y después redirige a `/acceso-denegado`
+- [x] S1.1.2: aplicado en `/dashboard/historial` (US-40), `/dashboard/mi-historial` (US-41), `/dashboard/historial/entradas/[id]` (US-62) y `/dashboard/ficha-diagnostico` (US-39)
+- [x] S1.1.3: `GET /api/historial/pdf` y `POST /api/historial/adjuntos/[id]` auditan el 403 por rol (antes no dejaban rastro)
+- [x] S1.1.4: `PACIENTE_NO_IDENTIFICADO` para rechazos sin paciente resuelto; detalle generado por `detalleRechazoPorRol()`
+
+## M2: Puntos de lectura que faltaban — status: completed
+- [x] S2.1.1: `/dashboard/ficha-diagnostico` registra el acceso `EXITOSO` al abrir una ficha (tipo `FICHA_CONSOLIDADA`, con `patientKey` y nombre)
+- [x] S2.1.2: `/dashboard/ficha-consolidada` sigue siendo redirección a `/dashboard/historial`, que ya audita
+
+## M3: Filtro «Usuario» completo — status: completed
+- [x] S3.1.1: `opcionesFiltrosAuditoria()` devuelve la unión de usuarios activos (`formatearAutorCambioEstado`) y actores del log, vía `combinarOpcionesUsuarios()`
+- [x] S3.1.2: los actores del log se conservan para no perder cuentas dadas de baja; los activos mandan el nombre a mostrar
+
+## M4: Pruebas y verificación — status: completed
+- [x] S4.1.1: `tests/us44-auditoria-historial.test.ts` +5 pruebas (unión con usuarios sin accesos, no duplica ids, conserva dados de baja, vacío, detalle del rechazo)
+- [x] S4.1.2: `npm test` → 349/349 verdes · `npm run typecheck` sin errores · `npm run lint` solo los 8 problemas preexistentes · `npx next build` exitoso
+
+## Pendiente (requiere base y sesiones reales)
+- Reproducir la demo: Paciente Pérez abre «Mi historial», Enfermero Pérez y Administrativo intentan abrir el historial (rechazos), un médico consulta una ficha; luego filtrar por cada uno en `/dashboard/admin/auditoria`. No ejecutado: Neon inalcanzable desde este entorno.

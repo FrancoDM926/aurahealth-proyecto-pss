@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadSession } from "@/lib/auth-session";
+import { PACIENTE_NO_IDENTIFICADO } from "@/lib/auditoria-historial";
 import { generarHistorialPdf } from "@/lib/historial-pdf";
 import { formatearFechaHoraAuditoriaAr } from "@/lib/estado-turno";
 import { consultarHistorialPaciente } from "@/services/historial/consultas";
@@ -18,6 +19,20 @@ export async function GET(request: Request) {
   }
   const { role, profile } = session.context;
   if (role !== "USUARIO") {
+    // RNF-04 / US-44: el intento de un rol no autorizado también se audita;
+    // antes se devolvía 403 sin dejar rastro y esos usuarios no aparecían nunca.
+    await registrarAccesoHistorial({
+      actor: {
+        id: profile.id,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        role,
+      },
+      pacienteNombre: PACIENTE_NO_IDENTIFICADO,
+      tipo: "HISTORIAL_PACIENTE",
+      resultado: "RECHAZADO",
+      detalle: "Intento de descargar el historial en PDF sin ser el paciente titular",
+    });
     return NextResponse.json(
       { error: "No tenés permisos para descargar este historial." },
       { status: 403 }

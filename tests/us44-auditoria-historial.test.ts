@@ -2,10 +2,13 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   LIMITE_ACCESOS_AUDITORIA,
+  PACIENTE_NO_IDENTIFICADO,
   RESULTADO_ACCESO_LABELS,
   RESULTADOS_ACCESO_HISTORIAL,
   TIPO_ACCESO_HISTORIAL_LABELS,
   TIPOS_ACCESO_HISTORIAL,
+  combinarOpcionesUsuarios,
+  detalleRechazoPorRol,
   normalizarFiltrosAuditoriaHistorial,
   rangoInstantesAuditoria,
   tonoResultadoAcceso,
@@ -116,5 +119,63 @@ describe("US-44 — etiquetas y resultado", () => {
 
   it("limita el listado a 500 accesos", () => {
     assert.equal(LIMITE_ACCESOS_AUDITORIA, 500);
+  });
+});
+
+describe("US-44 — filtro «Usuario» con todos los actores", () => {
+  it("incluye a los usuarios activos aunque no tengan accesos registrados", () => {
+    const opciones = combinarOpcionesUsuarios(
+      [
+        { id: "u-paciente", nombre: "Pérez, Juana (Usuario)" },
+        { id: "u-enfermera", nombre: "Pérez, Ana (Enfermería)" },
+        { id: "u-admin", nombre: "Pérez, Bruno (Administrativo)" },
+      ],
+      [{ id: "u-medico", nombre: "Dr. Gómez" }]
+    );
+
+    assert.deepEqual(
+      opciones.map((o) => o.id).sort(),
+      ["u-admin", "u-enfermera", "u-medico", "u-paciente"]
+    );
+  });
+
+  it("conserva a los actores del log que ya no están activos y no duplica ids", () => {
+    const opciones = combinarOpcionesUsuarios(
+      [{ id: "u-1", nombre: "Pérez, Ana (Enfermería)" }],
+      [
+        { id: "u-1", nombre: "Nombre viejo en el log" },
+        { id: "u-baja", nombre: "Pérez, Carlos (Usuario)" },
+      ]
+    );
+
+    assert.deepEqual(
+      opciones.map((o) => o.id).sort(),
+      ["u-1", "u-baja"]
+    );
+    assert.equal(
+      opciones.find((o) => o.id === "u-1")?.nombre,
+      "Pérez, Ana (Enfermería)"
+    );
+  });
+
+  it("sin datos no ofrece opciones y no rompe", () => {
+    assert.deepEqual(combinarOpcionesUsuarios([], []), []);
+  });
+});
+
+describe("US-44 — detalle del rechazo por rol", () => {
+  it("nombra el rol y el tipo de acceso consultado", () => {
+    assert.equal(
+      detalleRechazoPorRol("ENFERMERA", "HISTORIAL_PACIENTE"),
+      "Acceso rechazado: el rol Enfermería no puede consultar Historial clínico"
+    );
+    assert.equal(
+      detalleRechazoPorRol("ADMINISTRATIVO", "FICHA_CONSOLIDADA"),
+      "Acceso rechazado: el rol Administrativo no puede consultar Ficha del paciente"
+    );
+  });
+
+  it("usa un nombre de paciente explícito cuando el rol rechazado no lo conoce", () => {
+    assert.equal(PACIENTE_NO_IDENTIFICADO, "Paciente no identificado");
   });
 });

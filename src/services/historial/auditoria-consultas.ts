@@ -12,9 +12,10 @@ import type {
   ResultadoAccesoHistorial,
   TipoAccesoHistorial,
 } from "@/generated/prisma/client";
-import { formatearFechaHoraAuditoriaAr } from "@/lib/estado-turno";
+import { formatearAutorCambioEstado, formatearFechaHoraAuditoriaAr } from "@/lib/estado-turno";
 import {
   LIMITE_ACCESOS_AUDITORIA,
+  combinarOpcionesUsuarios,
   rangoInstantesAuditoria,
   type FiltrosAuditoriaHistorial,
 } from "@/lib/auditoria-historial";
@@ -119,25 +120,34 @@ export async function consultarAuditoriaAccesos(
 }
 
 /**
- * Opciones del selector «Usuario»: solo los actores que tienen accesos
- * registrados, para no ofrecer filtros que no devuelven nada.
+ * Opciones del selector «Usuario»: la unión de los usuarios activos y de los
+ * actores que ya figuran en el log.
+ *
+ * Antes solo se listaban quienes tenían accesos registrados, así que Enfermería
+ * o el Administrativo —que nunca acceden al historial y solo aparecen si un
+ * intento quedó rechazado— no existían en el filtro y la pantalla parecía no
+ * tener sus datos. Los actores del log se conservan por si la cuenta fue dada de
+ * baja.
  */
 export async function opcionesFiltrosAuditoria(): Promise<OpcionesFiltrosAuditoria> {
-  const filas = await db.accesoHistorialLog.groupBy({
-    by: ["usuarioId", "usuarioNombre"],
-    orderBy: { usuarioNombre: "asc" },
-  });
-
-  const porId = new Map<string, string>();
-  for (const fila of filas) {
-    if (!porId.has(fila.usuarioId)) {
-      porId.set(fila.usuarioId, fila.usuarioNombre);
-    }
-  }
+  const [usuariosActivos, actoresDelLog] = await Promise.all([
+    db.user.findMany({
+      where: { isActive: true },
+      select: { id: true, firstName: true, lastName: true, role: true },
+    }),
+    db.accesoHistorialLog.groupBy({ by: ["usuarioId", "usuarioNombre"] }),
+  ]);
 
   return {
-    usuarios: [...porId.entries()]
-      .map(([id, nombre]) => ({ id, nombre }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    usuarios: combinarOpcionesUsuarios(
+      usuariosActivos.map((usuario) => ({
+        id: usuario.id,
+        nombre: formatearAutorCambioEstado(usuario),
+      })),
+      actoresDelLog.map((actor) => ({
+        id: actor.usuarioId,
+        nombre: actor.usuarioNombre,
+      }))
+    ),
   };
 }

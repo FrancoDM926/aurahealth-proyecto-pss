@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadSession } from "@/lib/auth-session";
+import { PACIENTE_NO_IDENTIFICADO } from "@/lib/auditoria-historial";
 import {
   ADJUNTO_ERROR_TAMANO,
   contentDispositionAttachment,
@@ -97,6 +98,20 @@ export async function POST(
 
   const { role, profile } = session.context;
   if (role !== "MEDICO") {
+    // US-44: el rechazo por rol también se audita, para que Enfermería o el
+    // Administrativo queden visibles en el log.
+    await registrarAccesoHistorial({
+      actor: {
+        id: profile.id,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        role,
+      },
+      pacienteNombre: PACIENTE_NO_IDENTIFICADO,
+      tipo: "ESTUDIOS",
+      resultado: "RECHAZADO",
+      detalle: "Intento de adjuntar un estudio a una ficha sin ser médico",
+    });
     return NextResponse.json(
       { ok: false, message: "Solo un médico puede adjuntar estudios a la ficha." },
       { status: 403 }

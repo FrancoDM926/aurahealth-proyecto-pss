@@ -12,9 +12,11 @@
 
 import type {
   ResultadoAccesoHistorial,
+  Role,
   TipoAccesoHistorial,
 } from "@/generated/prisma/client";
 import { esFechaIso, sumarDias } from "@/lib/pagos";
+import { ROLE_LABELS } from "@/lib/roles";
 
 export const TIPOS_ACCESO_HISTORIAL: readonly TipoAccesoHistorial[] = [
   "FICHA_CONSOLIDADA",
@@ -118,4 +120,53 @@ export function tonoResultadoAcceso(
   resultado: ResultadoAccesoHistorial
 ): "ok" | "error" {
   return resultado === "EXITOSO" ? "ok" : "error";
+}
+
+// ─── Actor de un intento de acceso ───────────────────────────────────────────
+
+/**
+ * Nombre que se guarda cuando el intento rechazado no permite identificar al
+ * paciente: el rol no autorizado ni siquiera llega a resolver la ficha.
+ */
+export const PACIENTE_NO_IDENTIFICADO = "Paciente no identificado";
+
+/**
+ * Detalle del rechazo por rol. Se guarda en el log para que el administrador
+ * entienda por qué la fila es `RECHAZADO` sin abrir otra pantalla.
+ */
+export function detalleRechazoPorRol(
+  role: Role,
+  tipo: TipoAccesoHistorial
+): string {
+  return `Acceso rechazado: el rol ${ROLE_LABELS[role]} no puede consultar ${
+    TIPO_ACCESO_HISTORIAL_LABELS[tipo]
+  }`;
+}
+
+export type OpcionUsuarioAuditoria = { id: string; nombre: string };
+
+/**
+ * Opciones del selector «Usuario» de US-44: la unión de los actores que ya
+ * tienen accesos registrados y de los usuarios activos de la base.
+ *
+ * Sin la unión, un usuario que todavía no accedió al historial —por ejemplo
+ * Enfermería o Administrativo, que solo aparecen cuando un intento queda
+ * rechazado— no figura en el filtro y la pantalla parece no tener sus datos.
+ * Los activos mandan el nombre a mostrar; los del log se conservan para no
+ * perder cuentas dadas de baja.
+ */
+export function combinarOpcionesUsuarios(
+  activos: readonly OpcionUsuarioAuditoria[],
+  actoresDelLog: readonly OpcionUsuarioAuditoria[]
+): OpcionUsuarioAuditoria[] {
+  const porId = new Map<string, string>();
+  for (const actor of actoresDelLog) {
+    if (!porId.has(actor.id)) porId.set(actor.id, actor.nombre);
+  }
+  for (const usuario of activos) {
+    if (usuario.nombre.trim()) porId.set(usuario.id, usuario.nombre);
+  }
+  return [...porId.entries()]
+    .map(([id, nombre]) => ({ id, nombre }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }

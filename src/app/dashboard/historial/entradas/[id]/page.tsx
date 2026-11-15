@@ -12,7 +12,7 @@ import {
   THEAD_TR,
   Tabla,
 } from "@/components/pagos-ui";
-import { requireRoles } from "@/lib/auth-session";
+import { requireRolesAuditado } from "@/services/historial/acceso-auditado";
 import { getAdjuntoMaxMB } from "@/lib/configuracion";
 import { puedeAccederFicha, puedeSubirAdjunto } from "@/lib/historial";
 import { obtenerEntradaConAdjuntos } from "@/services/historial/consultas";
@@ -35,7 +35,11 @@ type PageProps = {
  * descargar los estudios; el paciente dueño también puede descargarlos.
  */
 export default async function EstudiosEntradaPage({ params }: PageProps) {
-  const { role, profile } = await requireRoles(["MEDICO"]);
+  // US-44: el rechazo por rol queda auditado; el `patientKey` recién se conoce
+  // después de leer la entrada y un rol no médico no llega a esa lectura.
+  const { role, profile } = await requireRolesAuditado(["MEDICO"], {
+    tipo: "ESTUDIOS",
+  });
   const { id } = await params;
 
   const entrada = await obtenerEntradaConAdjuntos(id);
