@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  ADJUNTO_ERROR_TAMANO,
   agruparEntradasPorFicha,
   contentDispositionAttachment,
   formatearFechaHoraEntrada,
@@ -152,17 +153,59 @@ describe("US-62 — validación de adjuntos", () => {
       nombreArchivo: "grande.pdf",
       tipoMime: "application/pdf",
       tamanoBytes: 11 * 1024 * 1024,
-      maxMB: 10,
+      maxMB: 4,
     });
     assert.deepEqual(resultado, {
       ok: false,
-      error: "El archivo supera el tamaño máximo permitido (10 MB).",
+      error: "El archivo supera el tamaño máximo permitido.",
     });
+    assert.equal(ADJUNTO_ERROR_TAMANO, "El archivo supera el tamaño máximo permitido.");
+  });
+
+  it("acepta exactamente el máximo y rechaza un byte más", () => {
+    const maxMB = 4;
+    const exacto = validarAdjunto({
+      nombreArchivo: "limite.pdf",
+      tipoMime: "application/pdf",
+      tamanoBytes: maxMB * 1024 * 1024,
+      maxMB,
+    });
+    assert.ok(exacto.ok);
+
+    const excedido = validarAdjunto({
+      nombreArchivo: "limite.pdf",
+      tipoMime: "application/pdf",
+      tamanoBytes: maxMB * 1024 * 1024 + 1,
+      maxMB,
+    });
+    assert.deepEqual(excedido, { ok: false, error: ADJUNTO_ERROR_TAMANO });
+  });
+
+  it("rechaza un archivo de 5 MB con el techo de 4 MB", () => {
+    const resultado = validarAdjunto({
+      nombreArchivo: "estudio.pdf",
+      tipoMime: "application/pdf",
+      tamanoBytes: 5 * 1024 * 1024,
+      maxMB: 4,
+    });
+    assert.deepEqual(resultado, { ok: false, error: ADJUNTO_ERROR_TAMANO });
+  });
+
+  it("no permite superar el techo de plataforma aunque la configuración sea mayor", () => {
+    const resultado = validarAdjunto({
+      nombreArchivo: "estudio.pdf",
+      tipoMime: "application/pdf",
+      tamanoBytes: 5 * 1024 * 1024,
+      maxMB: 10,
+    });
+    assert.deepEqual(resultado, { ok: false, error: ADJUNTO_ERROR_TAMANO });
   });
 
   it("valida el rango del tamaño máximo configurable", () => {
-    assert.equal(validarMaxAdjuntoMB(10), null);
+    assert.equal(validarMaxAdjuntoMB(1), null);
+    assert.equal(validarMaxAdjuntoMB(4), null);
     assert.ok(validarMaxAdjuntoMB(0));
+    assert.ok(validarMaxAdjuntoMB(5));
     assert.ok(validarMaxAdjuntoMB(26));
     assert.ok(validarMaxAdjuntoMB(2.5));
   });

@@ -153,9 +153,23 @@ export const ADJUNTO_MIME_PERMITIDOS: Record<string, "Imagen" | "PDF"> = {
   "image/gif": "Imagen",
 };
 
-export const ADJUNTO_MAX_MB_DEFAULT = 10;
-export const ADJUNTO_MAX_MB_LIMITE = 25;
+export const ADJUNTO_MAX_MB_DEFAULT = 4;
+/**
+ * Techo efectivo mientras los adjuntos se guardan en `bytea` y la demo corre en
+ * Vercel: las funciones serverless rechazan cuerpos de request de más de ~4,5 MB.
+ * Con un almacenamiento externo (Vercel Blob, S3) este techo se puede subir.
+ */
+export const ADJUNTO_MAX_MB_LIMITE = 4;
 export const ADJUNTO_NOMBRE_MAX = 200;
+
+/** Mensaje del wireframe `wf_adjuntos_estudios.html`. */
+export const ADJUNTO_ERROR_TAMANO = "El archivo supera el tamaño máximo permitido.";
+
+/** Acota el máximo configurado al rango que admite la aplicación. */
+export function acotarMaxAdjuntoMB(valor: number): number {
+  if (!Number.isFinite(valor) || valor < 1) return ADJUNTO_MAX_MB_DEFAULT;
+  return Math.min(Math.trunc(valor), ADJUNTO_MAX_MB_LIMITE);
+}
 
 export function validarMaxAdjuntoMB(valor: number): string | null {
   if (!Number.isInteger(valor) || valor < 1 || valor > ADJUNTO_MAX_MB_LIMITE) {
@@ -171,7 +185,7 @@ export type AdjuntoValidado =
 /**
  * Valida un archivo antes de guardarlo: nombre, tipo MIME admitido y tamaño
  * contra el máximo configurado por el administrador. La misma función se usa en
- * cliente (mensaje inmediato) y en la server action (RNF-03).
+ * el cliente (mensaje inmediato) y en el Route Handler de subida (RNF-03).
  */
 export function validarAdjunto(input: {
   nombreArchivo: string | null | undefined;
@@ -194,15 +208,9 @@ export function validarAdjunto(input: {
     return { ok: false, error: "El archivo está vacío o no se pudo leer." };
   }
 
-  const maxMB = Math.min(
-    Math.max(1, Number.isFinite(input.maxMB) ? Math.trunc(input.maxMB) : ADJUNTO_MAX_MB_DEFAULT),
-    ADJUNTO_MAX_MB_LIMITE
-  );
+  const maxMB = acotarMaxAdjuntoMB(input.maxMB);
   if (input.tamanoBytes > maxMB * 1024 * 1024) {
-    return {
-      ok: false,
-      error: `El archivo supera el tamaño máximo permitido (${maxMB} MB).`,
-    };
+    return { ok: false, error: ADJUNTO_ERROR_TAMANO };
   }
 
   const tipo = ADJUNTO_MIME_PERMITIDOS[(input.tipoMime ?? "").toLowerCase()];

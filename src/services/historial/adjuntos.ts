@@ -1,41 +1,39 @@
-"use server";
+/**
+ * US-62: alta de un estudio adjunto a una entrada de la ficha.
+ *
+ * La subida entra por el Route Handler `POST /api/historial/adjuntos/[id]`
+ * (donde `id` es el `entradaId`) para no quedar sujeta al
+ * `serverActions.bodySizeLimit` de Next: un archivo grande rechazado por el
+ * parser de Server Actions no llega a ejecutar ninguna validación y el
+ * navegador muestra la pantalla de error. Acá se repite la autorización y la
+ * validación de tipo/tamaño, y todo acceso queda auditado (RNF-03, RNF-04).
+ */
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { assertRoles } from "@/lib/auth-session";
 import { getAdjuntoMaxMB } from "@/lib/configuracion";
-import { validarAdjunto } from "@/lib/historial";
-import { registrarAccesoHistorial } from "@/services/historial/auditoria";
+import { ADJUNTO_ERROR_TAMANO, validarAdjunto } from "@/lib/historial";
+import { registrarAccesoHistorial, type ActorHistorial } from "@/services/historial/auditoria";
 
-export type AdjuntoFormState = {
-  success: boolean;
+export type SubirAdjuntoResultado = {
+  ok: boolean;
+  status: number;
   message: string;
 };
 
-/**
- * US-62: adjunta una imagen o un PDF a una entrada de la ficha. Solo el médico
- * autor de la ficha puede hacerlo (RNF-03), y el tamaño máximo lo define el
- * administrador. El acceso queda registrado en la auditoría (RNF-04).
- */
-export async function subirAdjuntoAction(
-  _prevState: AdjuntoFormState,
-  formData: FormData
-): Promise<AdjuntoFormState> {
-  let actor;
-  try {
-    actor = await assertRoles(["MEDICO"]);
-  } catch {
-    return { success: false, message: "Solo un médico puede adjuntar estudios a la ficha." };
-  }
+export async function subirAdjuntoEntrada(input: {
+  actor: ActorHistorial;
+  entradaId: string;
+  archivo: File | null;
+}): Promise<SubirAdjuntoResultado> {
+  const { actor, entradaId, archivo } = input;
 
-  const entradaId = String(formData.get("entradaId") ?? "").trim();
   if (!entradaId) {
-    return { success: false, message: "No se indicó la entrada de la ficha." };
+    return { ok: false, status: 400, message: "No se indicó la entrada de la ficha." };
   }
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File)) {
-    return { success: false, message: "Seleccioná un archivo para adjuntar." };
+  if (!archivo) {
+    return { ok: false, status: 400, message: "Seleccioná un archivo para adjuntar." };
   }
 
   const entrada = await db.fichaDiagnosticoEntrada.findUnique({
@@ -53,19 +51,14 @@ export async function subirAdjuntoAction(
   });
 
   if (!entrada) {
-    return { success: false, message: "La entrada de la ficha no existe." };
+    return { ok: false, status: 404, message: "La entrada de la ficha no existe." };
   }
 
   const pacienteNombre = entrada.ficha.patientName;
 
-  if (actor.profile.id !== entrada.ficha.doctorId) {
+  if (actor.id !== entrada.ficha.doctorId) {
     await registrarAccesoHistorial({
-      actor: {
-        id: actor.profile.id,
-        firstName: actor.profile.firstName,
-        lastName: actor.profile.lastName,
-        role: actor.role,
-      },
+      actor,
       pacienteKey: entrada.ficha.patientKey,
       pacienteNombre,
       tipo: "ESTUDIOS",
@@ -73,7 +66,8 @@ export async function subirAdjuntoAction(
       detalle: `Intento de adjuntar a una entrada de otro profesional: ${archivo.name}`,
     });
     return {
-      success: false,
+      ok: false,
+      status: 403,
       message: "Solo el profesional autor de la ficha puede adjuntar estudios a sus entradas.",
     };
   }
@@ -87,20 +81,17 @@ export async function subirAdjuntoAction(
   });
 
   if (!validacion.ok) {
-    return { success: false, message: validacion.error };
+    return { ok: false, status: 400, message: validacion.error };
   }
 
   try {
     const contenido = new Uint8Array(await archivo.arrayBuffer());
     // El tamaño real del buffer manda sobre el declarado por el navegador.
     if (contenido.byteLength > maxMB * 1024 * 1024) {
-      return {
-        success: false,
-        message: `El archivo supera el tamaño máximo permitido (${maxMB} MB).`,
-      };
+      return { ok: false, status: 400, message: ADJUNTO_ERROR_TAMANO };
     }
     if (contenido.byteLength === 0) {
-      return { success: false, message: "El archivo está vacío o no se pudo leer." };
+      return { ok: false, status: 400, message: "El archivo está vacío o no se pudo leer." };
     }
 
     await db.adjuntoEstudio.create({
@@ -110,18 +101,13 @@ export async function subirAdjuntoAction(
         tipoMime: archivo.type.toLowerCase(),
         tamanoBytes: contenido.byteLength,
         contenido,
-        subidoPorId: actor.profile.id,
-        subidoPorNombre: `Dr. ${actor.profile.firstName} ${actor.profile.lastName}`.trim(),
+        subidoPorId: actor.id,
+        subidoPorNombre: `Dr. ${actor.firstName} ${actor.lastName}`.trim(),
       },
     });
 
     await registrarAccesoHistorial({
-      actor: {
-        id: actor.profile.id,
-        firstName: actor.profile.firstName,
-        lastName: actor.profile.lastName,
-        role: actor.role,
-      },
+      actor,
       pacienteKey: entrada.ficha.patientKey,
       pacienteNombre,
       tipo: "ESTUDIOS",
@@ -133,11 +119,12 @@ export async function subirAdjuntoAction(
     revalidatePath("/dashboard/historial");
     revalidatePath("/dashboard/mi-historial");
 
-    return { success: true, message: "Estudio adjuntado a la entrada de la ficha." };
+    return { ok: true, status: 200, message: "Estudio adjuntado a la entrada de la ficha." };
   } catch (error) {
-    console.error("subirAdjuntoAction:", error);
+    console.error("subirAdjuntoEntrada:", error);
     return {
-      success: false,
+      ok: false,
+      status: 500,
       message: "No se pudo guardar el estudio. Intentá nuevamente.",
     };
   }

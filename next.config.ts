@@ -3,9 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      // US-62: el administrador puede configurar hasta 25 MB por adjunto.
-      // El límite del cuerpo incluye el sobre multipart, por eso 30 MB.
-      bodySizeLimit: "30mb",
+      // Los adjuntos de US-62 ya no viajan por Server Actions: usan el Route
+      // Handler POST /api/historial/adjuntos/[id], que no está sujeto a este
+      // límite. Se conserva un margen para el resto de los formularios.
+      bodySizeLimit: "5mb",
     },
   },
 };

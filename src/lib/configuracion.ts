@@ -5,7 +5,7 @@ import {
 } from "@/lib/availability-rn02";
 import { ANTELACION_RECORDATORIO_DEFAULT_HORAS } from "@/lib/recordatorios";
 import { ANTELACION_CANCELACION_DEFAULT_HORAS } from "@/lib/reservas";
-import { ADJUNTO_MAX_MB_DEFAULT } from "@/lib/historial";
+import { acotarMaxAdjuntoMB } from "@/lib/historial";
 
 /**
  * Límites de jornadas semanales vigentes (US-06 / RN-02). Mientras el
@@ -60,18 +60,16 @@ export async function getCancelacionAntelacion(): Promise<number> {
 }
 
 /**
- * US-62: tamaño máximo (MB) de cada estudio adjunto a la ficha. Mientras el
- * administrador no lo cambie rige el valor inicial de 10 MB.
+ * US-62: tamaño máximo (MB) de cada estudio adjunto a la ficha. El valor
+ * guardado se acota al techo de la aplicación (`ADJUNTO_MAX_MB_LIMITE`), que
+ * hoy contempla el límite de cuerpo de las funciones serverless de Vercel.
  */
 export async function getAdjuntoMaxMB(): Promise<number> {
   const config = await db.configuracion.findUnique({
     where: { id: 1 },
     select: { adjuntoMaxMB: true },
   });
-  const mb = config?.adjuntoMaxMB;
-  return typeof mb === "number" && Number.isInteger(mb) && mb > 0
-    ? mb
-    : ADJUNTO_MAX_MB_DEFAULT;
+  return acotarMaxAdjuntoMB(config?.adjuntoMaxMB ?? 0);
 }
 
 /** US-34: obras sociales con su descuento porcentual predefinido, para administrarlas. */

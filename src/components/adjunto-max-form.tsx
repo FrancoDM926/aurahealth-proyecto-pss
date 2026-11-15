@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { saveAdjuntoMaxMB } from "@/actions/configuracion";
-import { ADJUNTO_MAX_MB_LIMITE } from "@/lib/historial";
+import { ADJUNTO_MAX_MB_DEFAULT, ADJUNTO_MAX_MB_LIMITE } from "@/lib/historial";
 
 /** US-62: tamaño máximo configurable de los estudios adjuntos a la ficha. */
 export function AdjuntoMaxForm({ initial }: { initial: number }) {
@@ -26,7 +26,8 @@ export function AdjuntoMaxForm({ initial }: { initial: number }) {
       <h2 className="text-lg font-bold text-ink">Estudios adjuntos a la ficha</h2>
       <p className="mt-1 text-sm text-ink-secondary">
         Tamaño máximo de cada imagen o PDF que el médico adjunta a una entrada del historial
-        clínico. El valor inicial del sistema son 10 MB.
+        clínico. El valor inicial del sistema son {ADJUNTO_MAX_MB_DEFAULT} MB y el techo
+        actual es {ADJUNTO_MAX_MB_LIMITE} MB por el límite de las funciones serverless.
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">

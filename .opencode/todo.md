@@ -162,3 +162,28 @@ rechazados que ya registran US-40, US-41 y US-62.
 - [x] S3.1.1: `tests/us44-auditoria-historial.test.ts` — 10 pruebas de filtros, fechas, etiquetas y tope
 - [x] S3.1.2: `npx tsc --noEmit` sin errores · `npm test` 312/312 verdes · `npm run lint` solo los 8 problemas preexistentes · `npm run build` exitoso con `/dashboard/admin/auditoria`
 - [x] S3.1.3: consultas verificadas contra Neon: 11 accesos reales, filtros por usuario, tipo, rango de fechas, paciente y combinaciones
+
+---
+
+# Sprint 3 — corrección 1: US-62, adjuntos mayores a 1 MB — COMPLETADA
+
+Objetivo: que un PDF o imagen de hasta el máximo configurado se adjunte sin
+romper la pantalla, validando el tamaño en cliente y servidor. Fuente:
+`ctxt/plan-correcciones-sprint-3.md` §3.1 y `wireframes aurahealth/wf_adjuntos_estudios.html`.
+
+## M1: Subida por Route Handler — status: completed
+- [x] S1.1.1: `src/services/historial/adjuntos.ts` con autorización, validación y auditoría compartidas
+- [x] S1.1.2: `POST /api/historial/adjuntos/[id]` (`id` = `entradaId`) con `runtime = "nodejs"`; ya no depende de `serverActions.bodySizeLimit` — verificado con `npx next build`
+- [x] S1.1.3: se eliminó `subirAdjuntoAction` para no dejar dos caminos con reglas distintas
+
+## M2: Validación en cliente y techo de plataforma — status: completed
+- [x] S2.1.1: `adjunto-upload-form.tsx` valida tipo y tamaño con `validarAdjunto`, muestra el error del wireframe y deshabilita «Adjuntar» sin enviar la petición
+- [x] S2.1.2: `ADJUNTO_MAX_MB_LIMITE`/`DEFAULT` = 4 MB y `getAdjuntoMaxMB()` acota el valor guardado; formulario de configuración actualizado
+- [x] S2.1.3: mensaje único `ADJUNTO_ERROR_TAMANO` («El archivo supera el tamaño máximo permitido.»)
+
+## M3: Pruebas y verificación — status: completed
+- [x] S3.1.1: `tests/us40-41-62-historial.test.ts` ampliado (límite exacto, +1 byte, 5 MB con techo 4, configuración mayor al techo, `.exe`)
+- [x] S3.1.2: `npm test` → 340/340 verdes · `npm run typecheck` sin errores · `npm run lint` solo los 8 problemas preexistentes (archivos no tocados) · `npx next build` exitoso
+
+## Pendiente de verificación manual
+- Probar en la app compilada (`next start`) 500 KB, 2 MB y 5 MB; confirmar el techo real del hosting. No ejecutado en esta sesión (requiere sesión Clerk y base accesible).
