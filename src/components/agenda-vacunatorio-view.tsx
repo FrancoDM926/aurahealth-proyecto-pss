@@ -3,14 +3,16 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { guardarAgendaVacunatorio, type FranjaVacunatorioItem } from "@/actions/agenda-vacunatorio";
-import { isPastDate, opcionesHoraFin, opcionesHoraInicio } from "@/lib/availability-rn02";
+import { horaActualArgentina, isPastDate, opcionesHoraFin, opcionesHoraInicio } from "@/lib/availability-rn02";
 import {
   cantidadTurnosDeFranja,
   claveFranja,
   formatearFechaAr,
   franjasSolapadas,
   ordenarFranjas,
+  validarFranjaHorarioPasado,
   validarFranjaSimple,
+  ERROR_FRANJA_PASADA,
   ERROR_SOLAPAMIENTO,
   type FranjaVacunatorio,
 } from "@/lib/agenda-vacunatorio";
@@ -27,6 +29,8 @@ type Props = {
   inicial: FranjaVacunatorioItem[];
   /** Hoy ("YYYY-MM-DD") en la hora de la sala. */
   today: string;
+  /** Hora actual ("HH:mm") en la hora de la sala. */
+  ahoraHora?: string;
 };
 
 type FranjaEditable = FranjaVacunatorio & { turnosReservados: number };
@@ -47,8 +51,9 @@ function nombreMes(year: number, month: number): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-export function AgendaVacunatorioView({ year, month, inicial, today }: Props) {
+export function AgendaVacunatorioView({ year, month, inicial, today, ahoraHora: ahoraHoraProp }: Props) {
   const router = useRouter();
+  const ahoraHora = ahoraHoraProp ?? horaActualArgentina();
   const [franjas, setFranjas] = useState<FranjaEditable[]>(() =>
     inicial.map((f) => ({
       date: f.date,
@@ -88,9 +93,28 @@ export function AgendaVacunatorioView({ year, month, inicial, today }: Props) {
   const totalTurnos = franjas.reduce((acc, f) => acc + cantidadTurnosDeFranja(f), 0);
   const opcionesFin = opcionesHoraFin(desde);
 
+  const seleccionarDia = (nuevoDia: string) => {
+    setDia(nuevoDia);
+    setErrorNueva(null);
+    if (nuevoDia === today && desde <= ahoraHora) {
+      const primerFuturo = HORAS_INICIO.find((h) => h > ahoraHora);
+      if (primerFuturo) {
+        setDesde(primerFuturo);
+        const fins = opcionesHoraFin(primerFuturo);
+        if (!fins.includes(hasta)) setHasta(fins[0] ?? "");
+      }
+    }
+  };
+
   const cambiarDesde = (value: string) => {
     setDesde(value);
-    if (!opcionesHoraFin(value).includes(hasta)) setHasta(opcionesHoraFin(value)[0] ?? "");
+    if (dia === today && value <= ahoraHora) {
+      setErrorNueva(ERROR_FRANJA_PASADA);
+    } else if (errorNueva === ERROR_FRANJA_PASADA) {
+      setErrorNueva(null);
+    }
+    const fins = opcionesHoraFin(value);
+    if (!fins.includes(hasta)) setHasta(fins[0] ?? "");
   };
 
   const agregar = () => {
@@ -101,7 +125,8 @@ export function AgendaVacunatorioView({ year, month, inicial, today }: Props) {
     if (!dia.startsWith(`${year}-${pad(month)}-`)) {
       return setErrorNueva("El día debe pertenecer al mes seleccionado.");
     }
-    if (isPastDate(dia, today)) return setErrorNueva("No se pueden cargar franjas en fechas pasadas.");
+    const errorHorario = validarFranjaHorarioPasado(nueva, today, ahoraHora);
+    if (errorHorario) return setErrorNueva(errorHorario);
     if (franjas.some((f) => franjasSolapadas(f, nueva))) return setErrorNueva(ERROR_SOLAPAMIENTO);
     setErrorNueva(null);
     setFranjas((prev) => [...prev, { ...nueva, turnosReservados: 0 }]);
@@ -185,27 +210,50 @@ export function AgendaVacunatorioView({ year, month, inicial, today }: Props) {
             const key = dateKey(year, month, d);
             const delDia = porDia.get(key) ?? [];
             const past = isPastDate(key, today);
+            const sinHorasFuturas = key === today && !HORAS_INICIO.some((h) => h > ahoraHora);
+            const buttonDisabled = past || sinHorasFuturas;
+            const tieneFranjasActivas = delDia.some(
+              (f) => !isPastDate(f.date, today) && !(f.date === today && f.startTime <= ahoraHora)
+            );
+            const soloFranjasPasadas = delDia.length > 0 && !tieneFranjasActivas;
+
             return (
               <button
                 key={key}
                 type="button"
-                disabled={past}
-                onClick={() => setDia(key)}
-                title={past ? "Fecha pasada" : "Elegir este día para una nueva franja"}
+                disabled={buttonDisabled}
+                onClick={() => seleccionarDia(key)}
+                title={
+                  buttonDisabled
+                    ? "Fecha u horarios pasados"
+                    : "Elegir este día para una nueva franja"
+                }
                 className={`min-h-16 rounded-lg border p-1 transition ${
-                  delDia.length > 0
+                  tieneFranjasActivas
                     ? "border-primary bg-primary-light text-primary"
-                    : dia === key
-                      ? "border-primary"
-                      : "border-line bg-background hover:border-primary/50"
+                    : soloFranjasPasadas
+                      ? "border-primary/40 bg-primary-light/30 text-primary/60"
+                      : dia === key
+                        ? "border-primary"
+                        : "border-line bg-background hover:border-primary/50"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 <span className="font-semibold">{d}</span>
-                {delDia.map((f) => (
-                  <small key={claveFranja(f)} className="block text-[10px] leading-tight sm:text-xs">
-                    {f.startTime}–{f.endTime}
-                  </small>
-                ))}
+                {delDia.map((f) => {
+                  const franjaPasada =
+                    isPastDate(f.date, today) || (f.date === today && f.startTime <= ahoraHora);
+                  return (
+                    <small
+                      key={claveFranja(f)}
+                      className={`block text-[10px] leading-tight sm:text-xs ${
+                        franjaPasada ? "opacity-40" : ""
+                      }`}
+                      title={franjaPasada ? "Franja en horario pasado" : undefined}
+                    >
+                      {f.startTime}–{f.endTime}
+                    </small>
+                  );
+                })}
               </button>
             );
           })}
@@ -229,7 +277,7 @@ export function AgendaVacunatorioView({ year, month, inicial, today }: Props) {
               className={INPUT_CLASS}
               min={today}
               value={dia}
-              onChange={(e) => setDia(e.target.value)}
+              onChange={(e) => seleccionarDia(e.target.value)}
             />
           </div>
           <div>
@@ -237,9 +285,14 @@ export function AgendaVacunatorioView({ year, month, inicial, today }: Props) {
               Desde
             </label>
             <select id="desde" className={INPUT_CLASS} value={desde} onChange={(e) => cambiarDesde(e.target.value)}>
-              {HORAS_INICIO.map((h) => (
-                <option key={h}>{h}</option>
-              ))}
+              {HORAS_INICIO.map((h) => {
+                const deshabilitado = dia === today && h <= ahoraHora;
+                return (
+                  <option key={h} value={h} disabled={deshabilitado}>
+                    {h}{deshabilitado ? " (pasado)" : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div>
@@ -247,9 +300,14 @@ export function AgendaVacunatorioView({ year, month, inicial, today }: Props) {
               Hasta
             </label>
             <select id="hasta" className={INPUT_CLASS} value={hasta} onChange={(e) => setHasta(e.target.value)}>
-              {opcionesFin.map((h) => (
-                <option key={h}>{h}</option>
-              ))}
+              {opcionesFin.map((h) => {
+                const deshabilitado = dia === today && h <= ahoraHora;
+                return (
+                  <option key={h} value={h} disabled={deshabilitado}>
+                    {h}{deshabilitado ? " (pasado)" : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="flex items-end">

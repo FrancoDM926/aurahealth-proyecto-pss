@@ -2,7 +2,7 @@ import { obtenerAgendaVacunatorio } from "@/actions/agenda-vacunatorio";
 import { AgendaVacunatorioView } from "@/components/agenda-vacunatorio-view";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { requireRoles } from "@/lib/auth-session";
-import { todayInArgentina } from "@/lib/availability-rn02";
+import { ahoraEnArgentina } from "@/lib/busqueda-turnos";
 
 type PageProps = {
   searchParams: Promise<{ year?: string; month?: string }>;
@@ -19,7 +19,9 @@ export default async function AgendaVacunatorioPage({ searchParams }: PageProps)
   const { role, profile } = await requireRoles(["ENFERMERA"]);
   const params = await searchParams;
 
-  const hoy = todayInArgentina();
+  const ahora = ahoraEnArgentina();
+  const hoy = ahora.fecha;
+  const ahoraHora = ahora.hora;
   const [hoyYear, hoyMonth] = hoy.split("-").map(Number);
   const year = Number(params.year) || hoyYear;
   const month = Number(params.month) || hoyMonth;
@@ -40,7 +42,14 @@ export default async function AgendaVacunatorioPage({ searchParams }: PageProps)
           La enfermera carga días y franjas; el sistema genera los turnos y los publica para reserva.
         </p>
         <div className="mt-8">
-          <AgendaVacunatorioView key={`${y}-${m}`} year={y} month={m} inicial={franjas} today={hoy} />
+          <AgendaVacunatorioView
+            key={`${y}-${m}`}
+            year={y}
+            month={m}
+            inicial={franjas}
+            today={hoy}
+            ahoraHora={ahoraHora}
+          />
         </div>
       </div>
     </DashboardShell>

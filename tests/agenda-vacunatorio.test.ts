@@ -2,12 +2,15 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  ERROR_FRANJA_PASADA,
+  ERROR_HASTA_PASADO,
   ERROR_SOLAPAMIENTO,
   calcularCambiosAgenda,
   cantidadTurnosDeFranja,
   franjasSolapadas,
   mensajeBloqueoPorReservas,
   validarAgendaMes,
+  validarFranjaHorarioPasado,
   validarFranjaSimple,
   type FranjaGuardada,
   type TurnoVacunatorioExistente,
@@ -70,6 +73,53 @@ describe("franjasSolapadas / validarAgendaMes (US-63)", () => {
     const errores = validarAgendaMes([f("2026-11-10", "08:00", "12:00")], 2026, 11, [], AHORA);
     assert.match(errores[0], /ya pasó/);
     assert.deepEqual(validarAgendaMes([f("2026-11-10", "14:00", "16:00")], 2026, 11, [], AHORA), {});
+  });
+
+  it("hoy no admite una franja cuyo horario «hasta» ya pasó", () => {
+    const errores = validarAgendaMes([f("2026-11-10", "11:00", "12:00")], 2026, 11, [], AHORA);
+    assert.match(errores[0], /ya pasó/);
+  });
+
+  it("admite franjas en fechas futuras aunque el horario sea anterior a la hora actual", () => {
+    assert.deepEqual(validarAgendaMes([f("2026-11-11", "08:00", "12:00")], 2026, 11, [], AHORA), {});
+  });
+});
+
+describe("validarFranjaHorarioPasado (US-63 cliente y servidor)", () => {
+  const hoy = "2026-11-10";
+  const ahoraHora = "12:00";
+
+  it("rechaza franjas en fechas pasadas con el mensaje estándar", () => {
+    const res = validarFranjaHorarioPasado(f("2026-11-09", "14:00", "16:00"), hoy, ahoraHora);
+    assert.equal(res, "No se pueden cargar franjas en fechas pasadas.");
+  });
+
+  it("hoy rechaza franja con horario «desde» pasado o igual a la hora actual", () => {
+    assert.equal(
+      validarFranjaHorarioPasado(f("2026-11-10", "08:00", "14:00"), hoy, ahoraHora),
+      ERROR_FRANJA_PASADA
+    );
+    assert.equal(
+      validarFranjaHorarioPasado(f("2026-11-10", "12:00", "14:00"), hoy, ahoraHora),
+      ERROR_FRANJA_PASADA
+    );
+  });
+
+  it("hoy rechaza franja con horario «hasta» menor o igual a la hora actual", () => {
+    assert.equal(
+      validarFranjaHorarioPasado(f("2026-11-10", "11:00", "12:00"), hoy, ahoraHora),
+      ERROR_FRANJA_PASADA
+    );
+  });
+
+  it("hoy acepta franja con horarios futuros", () => {
+    assert.equal(validarFranjaHorarioPasado(f("2026-11-10", "14:00", "18:00"), hoy, ahoraHora), null);
+    assert.equal(validarFranjaHorarioPasado(f("2026-11-10", "12:30", "16:00"), hoy, ahoraHora), null);
+  });
+
+  it("acepta franja de fecha futura con cualquier horario de grilla", () => {
+    assert.equal(validarFranjaHorarioPasado(f("2026-11-11", "08:00", "12:00"), hoy, ahoraHora), null);
+    assert.equal(validarFranjaHorarioPasado(f("2026-11-20", "08:00", "12:00"), hoy, ahoraHora), null);
   });
 });
 

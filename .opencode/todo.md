@@ -326,3 +326,29 @@ en Registro, Mi cuenta, Mostrador y Reserva (persona atendida), sin guardar
 
 ## Pendiente (requiere base y sesión)
 - Verificar en el navegador que el campo Plan sea obligatorio y con el mensaje unificado. No ejecutado: Neon inalcanzable desde este entorno.
+
+---
+
+# Sprint 3 — corrección 7: US-63, franja pasada en vacunatorio — COMPLETADA
+
+Objetivo: evitar que la enfermera seleccione o cargue una franja horaria ya
+pasada del día corriente en la agenda del vacunatorio, validando en cliente
+(con deshabilitación en el selector y bloqueo al agregar) y repitiendo en
+servidor. Fuente: `ctxt/plan-correcciones-sprint-3.md` §3.7.
+
+## M1: Lógica pura y validación servidor — status: completed
+- [x] S1.1.1: `ERROR_FRANJA_PASADA`, `ERROR_HASTA_PASADO` y `validarFranjaHorarioPasado()` en `src/lib/agenda-vacunatorio.ts`
+- [x] S1.1.2: `validarAgendaMes()` asegura que `startTime` y `endTime` sean posteriores a la hora actual cuando la fecha es hoy
+
+## M2: UI y experiencia en cliente — status: completed
+- [x] S2.1.1: `AgendaVacunatorioPage` pasa `ahoraHora` a `AgendaVacunatorioView`
+- [x] S2.1.2: Selectores «Desde» y «Hasta» deshabilitan horarios pasados cuando `dia === today`
+- [x] S2.1.3: `cambiarDesde()` y `agregar()` validan horario futuro para el día corriente y muestran `ERROR_FRANJA_PASADA` sin ir al servidor
+- [x] S2.1.4: al seleccionar hoy, `desde` se ajusta automáticamente al primer horario futuro si el valor actual ya pasó
+
+## M3: Pruebas y verificación — status: completed
+- [x] S3.1.1: `tests/agenda-vacunatorio.test.ts` ampliado con 7 pruebas nuevas (fechas pasadas, desde/hasta pasados hoy, franja futura hoy, franja mañana, validación de agenda)
+- [x] S3.1.2: `npm test` → 370/370 verdes · `npm run typecheck` sin errores
+
+## Pendiente (requiere sesión en vivo)
+- Verificación manual en interfaz visual de que no se puedan seleccionar ni añadir franjas pasadas para el día de hoy.

@@ -15,6 +15,7 @@
 
 import {
   esHorarioDeGrilla,
+  horaActualArgentina,
   isPastDate,
   isPastTime,
   todayInArgentina,
@@ -57,6 +58,30 @@ export function formatearFechaAr(date: string): string {
 }
 
 export const ERROR_SOLAPAMIENTO = "La franja se solapa con otra ya cargada ese día.";
+export const ERROR_FRANJA_PASADA = "No se pueden cargar franjas en horarios pasados.";
+export const ERROR_HASTA_PASADO = "El horario «hasta» debe ser posterior a la hora actual.";
+
+/** Valida que la fecha y horarios de la franja no pertenezcan al pasado. */
+export function validarFranjaHorarioPasado(
+  f: FranjaVacunatorio,
+  today: string,
+  ahoraHora: string
+): string | null {
+  if (isPastDate(f.date, today)) {
+    return "No se pueden cargar franjas en fechas pasadas.";
+  }
+  if (f.date === today) {
+    const inicio = normalizarHora(f.startTime);
+    const fin = normalizarHora(f.endTime);
+    if (inicio <= ahoraHora) {
+      return ERROR_FRANJA_PASADA;
+    }
+    if (fin <= ahoraHora) {
+      return ERROR_HASTA_PASADO;
+    }
+  }
+  return null;
+}
 
 /** Dos franjas del mismo día se solapan si sus intervalos se pisan (tocarse no cuenta). */
 export function franjasSolapadas(a: FranjaVacunatorio, b: FranjaVacunatorio): boolean {
@@ -120,6 +145,10 @@ export function validarAgendaMes(
       }
       if (isPastTime(f.date, f.startTime, now)) {
         errores[i] = `El horario de inicio del ${formatearFechaAr(f.date)} ya pasó: elegí un horario posterior a la hora actual.`;
+        return;
+      }
+      if (f.date === hoy && f.endTime <= horaActualArgentina(now)) {
+        errores[i] = `El horario «hasta» del ${formatearFechaAr(f.date)} ya pasó: elegí un horario posterior a la hora actual.`;
         return;
       }
     }
