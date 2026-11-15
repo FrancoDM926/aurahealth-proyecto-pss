@@ -137,7 +137,7 @@ export function validarPersonaAtendida(
     "healthInsurancePlan",
     validarTextoObligatorio(
       data.healthInsurancePlan,
-      "Ingresá el plan de la obra social.",
+      "Ingresá el plan de tu cobertura.",
       MAX_LENGTHS.healthInsurancePlan
     )
   );

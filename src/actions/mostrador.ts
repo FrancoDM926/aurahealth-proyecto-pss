@@ -921,7 +921,7 @@ export async function registrarPacienteMostradorAction(
               : null,
           healthInsurancePlan:
             input.coverageType === "OBRA_SOCIAL"
-              ? input.healthInsurancePlan?.trim() || "General"
+              ? input.healthInsurancePlan?.trim() || null
               : null,
           healthInsuranceNumber:
             input.coverageType === "OBRA_SOCIAL" ? input.healthInsuranceNumber?.trim() : null,

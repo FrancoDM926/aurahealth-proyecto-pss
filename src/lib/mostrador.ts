@@ -281,7 +281,7 @@ export function validarAltaPacienteMostrador(input: AltaPacienteMostradorInput):
     address: input.address,
     coverageType: input.coverageType === "OBRA_SOCIAL" ? "OBRA_SOCIAL" : "PARTICULAR",
     healthInsuranceEntity: input.healthInsuranceEntity,
-    healthInsurancePlan: input.healthInsurancePlan || "General",
+    healthInsurancePlan: input.healthInsurancePlan,
     healthInsuranceNumber: input.healthInsuranceNumber,
   });
 

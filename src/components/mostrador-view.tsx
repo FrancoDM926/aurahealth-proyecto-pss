@@ -215,7 +215,7 @@ export function MostradorView({ initialData }: Props) {
           coverageType === "OBRA_SOCIAL" ? healthInsuranceEntity : undefined,
         healthInsurancePlan:
           coverageType === "OBRA_SOCIAL"
-            ? healthInsurancePlan || "General"
+            ? healthInsurancePlan
             : undefined,
         healthInsuranceNumber:
           coverageType === "OBRA_SOCIAL" ? healthInsuranceNumber : undefined,
@@ -668,7 +668,7 @@ export function MostradorView({ initialData }: Props) {
                         type="text"
                         value={healthInsurancePlan}
                         onChange={(e) => setHealthInsurancePlan(e.target.value)}
-                        placeholder="Plan (opc.)"
+                        placeholder="Plan"
                         className="w-32 rounded-lg border border-line px-3 py-2 text-sm text-ink transition hover:border-primary/60 focus:border-primary focus:outline-none"
                       />
                     </div>

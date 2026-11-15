@@ -567,3 +567,48 @@ describe("US-17 — terceros en el padrón de mostrador", () => {
     assert.deepEqual(refPacienteMostrador(sinTipo), { tipo: "USER", id: "usr-1" });
   });
 });
+
+
+describe("US-32 — obligatoriedad del Plan en mostrador", () => {
+  const base = {
+    firstName: "Manuel",
+    lastName: "Mollo",
+    docType: "DNI",
+    docNumber: "40123456",
+    birthDate: "2010-05-12",
+    phone: "221 555-0000",
+    email: "titular@correo.com",
+    coverageType: "OBRA_SOCIAL",
+    healthInsuranceEntity: "OSDE",
+    healthInsuranceNumber: "9988",
+  };
+
+  it("rechaza el alta con obra social si falta el plan", () => {
+    const res = validarAltaPacienteMostrador({ ...base, healthInsurancePlan: "" } as any); 
+    assert.equal(res.valid, false);
+    assert.ok(res.errors.healthInsurancePlan);
+    assert.equal(res.errors.healthInsurancePlan, "Ingresá el plan de tu cobertura.");
+  });
+
+  it("acepta el alta con obra social cuando el plan está presente", () => {
+    const res = validarAltaPacienteMostrador({ ...base, healthInsurancePlan: "210" } as any);
+    assert.equal(res.valid, true);
+    assert.equal(res.errors.healthInsurancePlan, undefined);
+  });
+
+  it("acepta el alta particular sin plan", () => {
+    const res = validarAltaPacienteMostrador({
+      ...base,
+      coverageType: "PARTICULAR",
+      healthInsuranceEntity: "",
+      healthInsurancePlan: "",
+      healthInsuranceNumber: "",
+    } as any); 
+    assert.equal(res.valid, true);
+  });
+
+  it("no guarda «General» por defecto: el plan vacío llega vacío a la validación", () => {
+    const res = validarAltaPacienteMostrador({ ...base, healthInsurancePlan: "" } as any); 
+    assert.equal(res.errors.healthInsurancePlan, "Ingresá el plan de tu cobertura.");
+  });
+});

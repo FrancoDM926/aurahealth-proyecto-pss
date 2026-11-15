@@ -302,3 +302,27 @@ Fuente: `ctxt/plan-correcciones-sprint-3.md` §3.5.
 
 ## Pendiente (requiere base y sesión de mostrador)
 - Verificar en el navegador: buscar a Manuel Mollo por apellido/documento, reservar/reprogramar/cancelar/marcar asistencia y cobrar con su cobertura. No ejecutado: Neon inalcanzable desde este entorno.
+
+---
+
+# Sprint 3 — corrección 6: US-32, obligatoriedad del Plan — COMPLETADA
+
+Objetivo: que el campo «Plan» tenga la misma obligatoriedad y el mismo mensaje
+en Registro, Mi cuenta, Mostrador y Reserva (persona atendida), sin guardar
+«General» por defecto. Fuente: `ctxt/plan-correcciones-sprint-3.md` §3.6.
+
+## M1: Quitar el fallback — status: completed
+- [x] S1.1.1: `validarAltaPacienteMostrador` ya no hace `|| "General"`
+- [x] S1.1.2: `registrarPacienteMostradorAction` guarda `null` cuando no hay plan (pero la validación ya lo exige)
+- [x] S1.1.3: `mostrador-view.tsx` deja de enviar `|| "General"` y el placeholder deja de decir «(opc.)»
+
+## M2: Mensaje unificado — status: completed
+- [x] S2.1.1: `reservas.ts` usa «Ingresá el plan de tu cobertura.» (igual que `validation.ts`)
+- [x] S2.1.2: Registro, Mi cuenta, Mostrador y Reserva usan la misma regla y mensaje
+
+## M3: Pruebas y verificación — status: completed
+- [x] S3.1.1: `tests/us17-mostrador.test.ts` +4 pruebas (sin plan → error y mensaje exacto; con plan → válido; particular sin plan → válido; no se guarda «General»)
+- [x] S3.1.2: `npm test` → 363/363 verdes · `npm run typecheck` sin errores · `npm run lint` solo los 8 problemas preexistentes · `npx next build` exitoso
+
+## Pendiente (requiere base y sesión)
+- Verificar en el navegador que el campo Plan sea obligatorio y con el mensaje unificado. No ejecutado: Neon inalcanzable desde este entorno.
