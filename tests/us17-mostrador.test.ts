@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  MENSAJE_TURNO_PASADO_MOSTRADOR,
   TIPO_OPERACION_LABELS,
   construirTurnosPacienteMostrador,
   filtrarPacientesMostrador,
@@ -8,6 +9,7 @@ import {
   formatearCoberturaPaciente,
   resolverTipoTurnoPorRol,
   validarAltaPacienteMostrador,
+  validarHorarioReservableMostrador,
   validarReprogramacionMostrador,
   type PacienteMostradorItem,
   type TurnoDisponibleMostradorItem,
@@ -370,5 +372,124 @@ describe("US-17 — Gestión de turnos desde mostrador", () => {
     assert.equal(TIPO_OPERACION_LABELS.REPROGRAMACION, "Reprogramación de turno");
     assert.equal(TIPO_OPERACION_LABELS.CANCELACION, "Cancelación de turno");
     assert.equal(TIPO_OPERACION_LABELS.ASISTENCIA, "Marca de asistencia");
+  });
+});
+
+describe("US-17 — horarios ya pasados del día en mostrador", () => {
+  const AHORA = { fecha: "2026-11-14", hora: "14:23" };
+
+  const turno = (
+    id: string,
+    date: string,
+    startTime: string,
+    tipoTurno: "MEDICO" | "VACUNACION" = "MEDICO"
+  ): TurnoDisponibleMostradorItem => ({
+    id,
+    tipoTurno,
+    date,
+    fechaFormateada: date,
+    startTime,
+    endTime: startTime,
+    profesionalId: tipoTurno === "MEDICO" ? "doc-1" : "vacunatorio",
+    profesionalNombre: tipoTurno === "MEDICO" ? "Dr. Carlos Méndez" : "Sala de Vacunación",
+    especialidadOVacunatorio: tipoTurno === "MEDICO" ? "Clínica médica" : "Vacunatorio",
+    specialty: tipoTurno === "MEDICO" ? "CLINICA_MEDICA" : null,
+    status: "DISPONIBLE",
+  });
+
+  it("descarta el turno de hoy cuya hora ya pasó y conserva los posteriores", () => {
+    const disponibles = [
+      turno("pasado", "2026-11-14", "14:00"),
+      turno("posterior", "2026-11-14", "15:00"),
+      turno("manana", "2026-11-15", "09:00"),
+      turno("pasado-vac", "2026-11-14", "09:30", "VACUNACION"),
+    ];
+
+    const medicos = filtrarTurnosDisponiblesMostrador(
+      disponibles,
+      { tipoTurno: "MEDICO" },
+      AHORA
+    );
+    assert.deepEqual(
+      medicos.map((t) => t.id),
+      ["posterior", "manana"]
+    );
+
+    const vacunacion = filtrarTurnosDisponiblesMostrador(
+      disponibles,
+      { tipoTurno: "VACUNACION" },
+      AHORA
+    );
+    assert.deepEqual(vacunacion, []);
+  });
+
+  it("un turno que empieza exactamente ahora tampoco se ofrece", () => {
+    const disponibles = [turno("justo-ahora", "2026-11-14", "14:23")];
+
+    assert.deepEqual(
+      filtrarTurnosDisponiblesMostrador(disponibles, { tipoTurno: "MEDICO" }, AHORA),
+      []
+    );
+  });
+
+  it("la acción de reserva rechaza un horario pasado con un mensaje claro", () => {
+    assert.equal(
+      validarHorarioReservableMostrador(
+        { date: "2026-11-14", startTime: "14:00" },
+        AHORA
+      ),
+      MENSAJE_TURNO_PASADO_MOSTRADOR
+    );
+    assert.equal(
+      MENSAJE_TURNO_PASADO_MOSTRADOR,
+      "Ese horario ya pasó. Elegí otro turno."
+    );
+    assert.equal(
+      validarHorarioReservableMostrador(
+        { date: "2026-11-14", startTime: "15:00" },
+        AHORA
+      ),
+      null
+    );
+    assert.equal(
+      validarHorarioReservableMostrador(
+        { date: "2026-11-15", startTime: "09:00" },
+        AHORA
+      ),
+      null
+    );
+  });
+
+  it("la reprogramación tampoco acepta un horario nuevo ya transcurrido", () => {
+    const res = validarReprogramacionMostrador({
+      turnoOriginal: {
+        id: "t-orig",
+        status: "RESERVADO",
+        reservedById: "p1",
+        tipoTurno: "MEDICO",
+        date: "2026-11-14",
+        startTime: "13:00",
+        doctorId: "doc-1",
+      },
+      turnoNuevo: {
+        id: "t-nuevo",
+        status: "DISPONIBLE",
+        bloqueoId: null,
+        tipoTurno: "MEDICO",
+        date: "2026-11-14",
+        startTime: "14:00",
+        doctorId: "doc-1",
+      },
+      pacienteId: "p1",
+      ahora: AHORA,
+    });
+
+    assert.equal(res.ok, false);
+    if (!res.ok) {
+      assert.equal(
+        res.error,
+        "No se puede reprogramar hacia un turno cuyo horario ya pasó."
+      );
+    }
   });
 });

@@ -15,6 +15,7 @@ import {
 } from "@/actions/mostrador";
 import {
   filtrarPacientesMostrador,
+  filtrarTurnosDisponiblesMostrador,
   type PacienteMostradorItem,
   type TipoTurnoMostrador,
   type TurnoPacienteMostradorItem,
@@ -116,27 +117,19 @@ export function MostradorView({ initialData }: Props) {
     });
   }, [initialData.profesionales, tipoTurno, especialidad]);
 
-  // Turnos disponibles filtrados para la tabla de reserva / reprogramación
+  // Turnos disponibles filtrados para la tabla de reserva / reprogramación.
+  // US-17: los horarios ya transcurridos del día se descartan con la misma
+  // función pura que usa el servidor, y con el reloj del servidor
+  // (`initialData.ahora`) para no depender de la hora del navegador.
   const turnosDisponiblesFiltrados = useMemo(() => {
-    return initialData.turnosDisponibles.filter((t) => {
-      if (t.tipoTurno !== tipoTurno) return false;
-      if (tipoTurno === "MEDICO" && especialidad && t.specialty !== especialidad) {
-        return false;
-      }
-      if (
-        tipoTurno === "MEDICO" &&
-        profesionalId &&
-        t.profesionalId !== profesionalId
-      ) {
-        return false;
-      }
-      if (turnoAReprogramar && t.id === turnoAReprogramar.id) {
-        return false;
-      }
-      return true;
-    });
+    return filtrarTurnosDisponiblesMostrador(
+      initialData.turnosDisponibles,
+      { tipoTurno, specialty: especialidad, profesionalId },
+      initialData.ahora
+    ).filter((t) => !turnoAReprogramar || t.id !== turnoAReprogramar.id);
   }, [
     initialData.turnosDisponibles,
+    initialData.ahora,
     tipoTurno,
     especialidad,
     profesionalId,

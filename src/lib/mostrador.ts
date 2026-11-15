@@ -260,6 +260,26 @@ export function validarAltaPacienteMostrador(input: AltaPacienteMostradorInput):
 }
 
 /**
+ * US-17: mensaje único para un horario del día que ya transcurrió. Se usa en la
+ * acción de reserva y en la de reprogramación para no depender de que la tabla
+ * del mostrador lo haya ocultado.
+ */
+export const MENSAJE_TURNO_PASADO_MOSTRADOR =
+  "Ese horario ya pasó. Elegí otro turno.";
+
+/**
+ * US-17: control de tiempo de una reserva desde mostrador. Se aplica en la
+ * tabla (para no ofrecer el horario) y en la acción (para no confiar en el
+ * cliente). Devuelve el mensaje de error o `null` si el turno es futuro.
+ */
+export function validarHorarioReservableMostrador(
+  turno: { date: string; startTime: string },
+  ahora: InstanteArgentina
+): string | null {
+  return esTurnoFuturo(turno, ahora) ? null : MENSAJE_TURNO_PASADO_MOSTRADOR;
+}
+
+/**
  * Criterio 3: Filtra los turnos disponibles en mostrador para cualquiera de los
  * dos tipos de turno (`MEDICO` o `VACUNACION`), especialidad y profesional.
  */

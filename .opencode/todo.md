@@ -244,3 +244,28 @@ que los tres se puedan elegir en el filtro «Usuario». Fuente:
 
 ## Pendiente (requiere base y sesiones reales)
 - Reproducir la demo: Paciente Pérez abre «Mi historial», Enfermero Pérez y Administrativo intentan abrir el historial (rechazos), un médico consulta una ficha; luego filtrar por cada uno en `/dashboard/admin/auditoria`. No ejecutado: Neon inalcanzable desde este entorno.
+
+---
+
+# Sprint 3 — corrección 4: US-17, turnos pasados en mostrador — COMPLETADA
+
+Objetivo: que la tabla del mostrador no ofrezca horarios ya transcurridos del
+día y que la acción los rechace aunque la llamada no venga de la UI. Fuente:
+`ctxt/plan-correcciones-sprint-3.md` §3.4.
+
+## M1: Filtro por hora en el servidor y en el cliente — status: completed
+- [x] S1.1.1: `cargarTurnosDisponiblesMostrador(ahora)` descarta con `esTurnoFuturo` (médicos y vacunación), no solo `date >= hoy`
+- [x] S1.1.2: `DatosInicialesMostrador.ahora` (instante de Argentina) se envía al cliente
+- [x] S1.1.3: `mostrador-view.tsx` usa `filtrarTurnosDisponiblesMostrador(..., initialData.ahora)` en lugar del filtro manual
+
+## M2: Validación en las acciones — status: completed
+- [x] S2.1.1: `validarHorarioReservableMostrador()` y `MENSAJE_TURNO_PASADO_MOSTRADOR` en `src/lib/mostrador.ts`
+- [x] S2.1.2: `reservarTurnoMostradorAction` valida el horario en la rama médica y en la de vacunación
+- [x] S2.1.3: `validarReprogramacionMostrador` ya rechazaba un destino pasado; se cubre con prueba (mensaje existente intacto)
+
+## M3: Pruebas y verificación — status: completed
+- [x] S3.1.1: `tests/us17-mostrador.test.ts` +4 pruebas (hoy 14:00 con ahora 14:23 excluido, hoy 15:00 y mañana incluidos, límite exacto, acción/reprogramación rechazan)
+- [x] S3.1.2: `npm test` → 353/353 verdes · `npm run typecheck` sin errores · `npm run lint` solo los 8 problemas preexistentes · `npx next build` exitoso
+
+## Pendiente (requiere base y sesión de mostrador)
+- Verificar en el navegador que la tabla no muestre el horario ya pasado y que la reserva de un horario futuro siga funcionando. No ejecutado: Neon inalcanzable desde este entorno.

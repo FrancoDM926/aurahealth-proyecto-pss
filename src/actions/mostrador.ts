@@ -7,7 +7,8 @@ import { db } from "@/lib/db";
 import { assertRoles } from "@/lib/auth-session";
 import { SPECIALTY_LABELS } from "@/lib/roles";
 import { sumarDias } from "@/lib/agenda-profesional";
-import { ahoraEnArgentina, formatearFechaAr } from "@/lib/busqueda-turnos";
+import { ahoraEnArgentina, esTurnoFuturo, formatearFechaAr } from "@/lib/busqueda-turnos";
+import type { InstanteArgentina } from "@/lib/busqueda-turnos";
 import {
   ESTADO_TURNO_LABELS,
   formatearAutorCambioEstado,
@@ -22,6 +23,7 @@ import {
   formatearProfesionalMostrador,
   resolverTipoTurnoPorRol,
   validarAltaPacienteMostrador,
+  validarHorarioReservableMostrador,
   validarReprogramacionMostrador,
   type AltaPacienteMostradorInput,
   type FiltrosBusquedaPacienteInput,
@@ -65,6 +67,8 @@ export type VacunaMostradorOption = {
 
 export type DatosInicialesMostrador = {
   hoy: string;
+  /** Instante «ahora» en Argentina: el cliente filtra los horarios con este reloj. */
+  ahora: InstanteArgentina;
   pacientes: PacienteMostradorItem[];
   pacienteSeleccionado: PacienteMostradorItem | null;
   turnosParaGestion: TurnoPacienteMostradorItem[];
@@ -361,7 +365,10 @@ async function cargarTurnosDePaciente(pacienteId: string) {
   return construirTurnosPacienteMostrador(candidatos, ahora);
 }
 
-async function cargarTurnosDisponiblesMostrador(hoy: string): Promise<TurnoDisponibleMostradorItem[]> {
+async function cargarTurnosDisponiblesMostrador(
+  ahora: InstanteArgentina
+): Promise<TurnoDisponibleMostradorItem[]> {
+  const hoy = ahora.fecha;
   await asegurarTurnosVacunatorioDisponibles(hoy);
 
   const [rowsMedicos, rowsVacunacion] = await Promise.all([
@@ -444,7 +451,12 @@ async function cargarTurnosDisponiblesMostrador(hoy: string): Promise<TurnoDispo
     };
   });
 
-  return [...itemsMedicos, ...itemsVacunacion];
+  // US-17: `date >= hoy` solo descarta días anteriores; los horarios del día ya
+  // transcurridos (por ejemplo, las 14:00 a las 14:23) se descartan acá con la
+  // misma regla pura que usa el cliente (`esTurnoFuturo`).
+  return [...itemsMedicos, ...itemsVacunacion].filter((turno) =>
+    esTurnoFuturo(turno, ahora)
+  );
 }
 
 async function cargarOperacionesRecientes(pacienteId?: string): Promise<OperacionMostradorAuditoriaItem[]> {
@@ -533,7 +545,7 @@ export async function obtenerDatosInicialesMostrador(params?: {
       orderBy: [{ nombre: "asc" }],
       select: { nombre: true },
     }),
-    cargarTurnosDisponiblesMostrador(ahora.fecha),
+    cargarTurnosDisponiblesMostrador(ahora),
     cargarOperacionesRecientes(params?.pacienteId),
   ]);
 
@@ -577,6 +589,7 @@ export async function obtenerDatosInicialesMostrador(params?: {
 
   return {
     hoy: ahora.fecha,
+    ahora,
     pacientes,
     pacienteSeleccionado,
     turnosParaGestion,
@@ -896,6 +909,16 @@ export async function reservarTurnoMostradorAction(input: {
         };
       }
 
+      // US-17: un horario del día ya transcurrido no se puede reservar, aunque
+      // el cliente lo haya enviado por una llamada directa a la acción.
+      const errorHorarioVac = validarHorarioReservableMostrador(
+        { date: formatUtcDateString(turnoVac.date), startTime: turnoVac.startTime },
+        ahoraEnArgentina()
+      );
+      if (errorHorarioVac) {
+        return { success: false, message: errorHorarioVac };
+      }
+
       const resVac = await reservarTurnoVacunacion({
         turnoId: turnoVac.id,
         vacunaId: vacuna.id,
@@ -955,6 +978,16 @@ export async function reservarTurnoMostradorAction(input: {
         success: false,
         message: "Ese turno ya no está disponible. Elegí otro horario.",
       };
+    }
+
+    // US-17: mismo control que en la rama de vacunación; la UI ya no muestra
+    // horarios pasados, pero la acción no confía en el cliente.
+    const errorHorario = validarHorarioReservableMostrador(
+      { date: formatUtcDateString(turno.date), startTime: turno.startTime },
+      ahoraEnArgentina()
+    );
+    if (errorHorario) {
+      return { success: false, message: errorHorario };
     }
 
     const motivoLimpio = (input.motivoConsulta ?? "").trim() || null;
