@@ -13,6 +13,7 @@ import {
   validarAltaPacienteMostrador,
   validarHorarioReservableMostrador,
   validarReprogramacionMostrador,
+  type AltaPacienteMostradorInput,
   type PacienteMostradorItem,
   type TurnoDisponibleMostradorItem,
 } from "@/lib/mostrador";
@@ -570,7 +571,7 @@ describe("US-17 — terceros en el padrón de mostrador", () => {
 
 
 describe("US-32 — obligatoriedad del Plan en mostrador", () => {
-  const base = {
+  const base: AltaPacienteMostradorInput = {
     firstName: "Manuel",
     lastName: "Mollo",
     docType: "DNI",
@@ -584,14 +585,14 @@ describe("US-32 — obligatoriedad del Plan en mostrador", () => {
   };
 
   it("rechaza el alta con obra social si falta el plan", () => {
-    const res = validarAltaPacienteMostrador({ ...base, healthInsurancePlan: "" } as any); 
+    const res = validarAltaPacienteMostrador({ ...base, healthInsurancePlan: "" });
     assert.equal(res.valid, false);
     assert.ok(res.errors.healthInsurancePlan);
     assert.equal(res.errors.healthInsurancePlan, "Ingresá el plan de tu cobertura.");
   });
 
   it("acepta el alta con obra social cuando el plan está presente", () => {
-    const res = validarAltaPacienteMostrador({ ...base, healthInsurancePlan: "210" } as any);
+    const res = validarAltaPacienteMostrador({ ...base, healthInsurancePlan: "210" });
     assert.equal(res.valid, true);
     assert.equal(res.errors.healthInsurancePlan, undefined);
   });
@@ -603,12 +604,12 @@ describe("US-32 — obligatoriedad del Plan en mostrador", () => {
       healthInsuranceEntity: "",
       healthInsurancePlan: "",
       healthInsuranceNumber: "",
-    } as any); 
+    });
     assert.equal(res.valid, true);
   });
 
   it("no guarda «General» por defecto: el plan vacío llega vacío a la validación", () => {
-    const res = validarAltaPacienteMostrador({ ...base, healthInsurancePlan: "" } as any); 
+    const res = validarAltaPacienteMostrador({ ...base, healthInsurancePlan: "" });
     assert.equal(res.errors.healthInsurancePlan, "Ingresá el plan de tu cobertura.");
   });
 });

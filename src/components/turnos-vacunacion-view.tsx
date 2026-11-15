@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { reservarTurnoVacunacionAction } from "@/actions/turnos-vacunacion";
 import {
@@ -166,13 +166,17 @@ export function TurnosVacunacionView({
     setLoading(false);
     if (r.success) {
       setPaso("ok");
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
       return;
     }
     if (r.code === "NO_DISPONIBLE") {
       setPaso("no-disponible");
       setError(r.message);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
       return;
     }
     if (r.personaErrors) {
@@ -187,6 +191,9 @@ export function TurnosVacunacionView({
     setElegido(null);
     setPersona(null);
     setError(null);
+    startTransition(() => {
+      router.refresh();
+    });
   };
 
   const nombreTitular = esMostrador ? titular?.nombre : "vos";

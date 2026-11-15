@@ -352,3 +352,26 @@ servidor. Fuente: `ctxt/plan-correcciones-sprint-3.md` §3.7.
 
 ## Pendiente (requiere sesión en vivo)
 - Verificación manual en interfaz visual de que no se puedan seleccionar ni añadir franjas pasadas para el día de hoy.
+
+---
+
+# Sprint 3 — corrección 8: US-28, destello al confirmar vacunación — COMPLETADA
+
+Objetivo: evitar el parpadeo en blanco al confirmar la reserva de vacunación,
+mostrando la tarjeta verde de confirmación de forma continua y estabilizando el
+árbol de componentes RSC. Fuente: `ctxt/plan-correcciones-sprint-3.md` §3.8.
+
+## M1: Desacople de revalidación síncrona — status: completed
+- [x] S1.1.1: `reservarTurnoVacunacionAction` solo revalida `/dashboard/mis-turnos` y `/dashboard/agenda-vacunatorio`; no fuerza una recarga de la ruta activa en el flight response
+- [x] S1.1.2: la vista de confirmación `paso === "ok"` se renderiza a partir de variables estables en el estado local (`elegido`, `vacuna`, `persona`, `titular`)
+
+## M2: Transición fluida en cliente — status: completed
+- [x] S2.1.1: `confirmar()` y `volverALista()` usan `startTransition(() => router.refresh())` para actualizar el árbol en segundo plano sin interrumpir el renderizado del éxito
+- [x] S2.1.2: limpieza de tipos en `tests/us17-mostrador.test.ts` eliminando los casts `as any`
+
+## M3: Pruebas y verificación — status: completed
+- [x] S3.1.1: `tests/turnos-vacunacion.test.ts` y `tests/us17-mostrador.test.ts` 40/40 verdes
+- [x] S3.1.2: `npm test` → 370/370 verdes · `npm run typecheck` sin errores · `eslint` 0 problemas en archivos tocados
+
+## Pendiente (requiere sesión en vivo)
+- Verificación visual manual de que al presionar «Confirmar turno» la transición a la tarjeta verde sea inmediata y continua sin pantallas en blanco.

@@ -38,6 +38,11 @@ function revalidar() {
   for (const path of PATHS) revalidatePath(path);
 }
 
+function revalidarReserva() {
+  revalidatePath("/dashboard/mis-turnos");
+  revalidatePath("/dashboard/agenda-vacunatorio");
+}
+
 export type BusquedaVacunacionResult = {
   filtros: FiltrosVacunacion;
   rangoDefecto: { desde: string; hasta: string };
@@ -140,7 +145,7 @@ export async function reservarTurnoVacunacionAction(
         : [],
   });
 
-  revalidar();
+  revalidarReserva();
   if (!result.success) return result;
 
   // US-14 análogo: confirmación al titular sin bloquear la respuesta.
