@@ -42,7 +42,8 @@ import {
   cancelarTurnoVacunacion,
   reservarTurnoVacunacion,
 } from "@/services/vacunacion/turnos";
-import { ENTITY_OPTIONS } from "@/lib/validation";
+import { nombresObrasSociales } from "@/lib/configuracion";
+import { canonizarEntidad } from "@/lib/pagos";
 import type { MedicalSpecialty, Role } from "@/generated/prisma/client";
 
 export type ProfesionalMostradorOption = {
@@ -567,12 +568,12 @@ export async function obtenerDatosInicialesMostrador(params?: {
     specialtyLabel: p.specialty ? SPECIALTY_LABELS[p.specialty] : "Consulta médica",
   }));
 
-  const setObrasSociales = new Set<string>(
-    ENTITY_OPTIONS.map((o) => o.value)
-  );
-  for (const os of obrasSocialesRows) {
-    if (os.nombre.trim()) setObrasSociales.add(os.nombre.trim());
-  }
+  // US-32: el listado de obras sociales lo administra el administrador; no hay
+  // nombres hardcodeados para no guardar una entidad que después no encuentra
+  // el descuento (US-34).
+  const obrasSociales = obrasSocialesRows
+    .map((os) => os.nombre.trim())
+    .filter(Boolean);
 
   return {
     hoy: ahora.fecha,
@@ -582,7 +583,7 @@ export async function obtenerDatosInicialesMostrador(params?: {
     turnosAsistenciaYPago,
     profesionales,
     vacunas: vacunasRows,
-    obrasSociales: Array.from(setObrasSociales),
+    obrasSociales,
     turnosDisponibles,
     operacionesRecientes,
   };
@@ -698,6 +699,10 @@ export async function registrarPacienteMostradorAction(
   const cleanDoc = input.docNumber.trim();
   const cleanEmail = input.email.trim().toLowerCase();
 
+  // US-34: se guarda el nombre canónico de la obra social del listado (US-32)
+  // para que el descuento configurado se encuentre al cobrar.
+  const entidades = input.coverageType === "OBRA_SOCIAL" ? await nombresObrasSociales() : [];
+
   const existente = await db.user.findFirst({
     where: {
       OR: [{ docNumber: cleanDoc }, { email: cleanEmail }],
@@ -763,7 +768,9 @@ export async function registrarPacienteMostradorAction(
           address: input.address?.trim() || null,
           coverageType: input.coverageType,
           healthInsuranceEntity:
-            input.coverageType === "OBRA_SOCIAL" ? input.healthInsuranceEntity?.trim() : null,
+            input.coverageType === "OBRA_SOCIAL"
+              ? canonizarEntidad(input.healthInsuranceEntity ?? "", entidades)
+              : null,
           healthInsurancePlan:
             input.coverageType === "OBRA_SOCIAL"
               ? input.healthInsurancePlan?.trim() || "General"

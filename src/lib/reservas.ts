@@ -6,7 +6,8 @@
  * mismas reglas y mensajes entre el formulario y las server actions.
  */
 
-import { ENTITY_OPTIONS, MAX_LENGTHS, parseBirthDate } from "@/lib/validation";
+import { MAX_LENGTHS, parseBirthDate } from "@/lib/validation";
+import { normalizarEntidad } from "@/lib/pagos";
 import { horasHastaTurno } from "@/lib/recordatorios";
 
 /** US-13: largo máximo del motivo de la consulta (opcional). */
@@ -66,7 +67,6 @@ export type PersonaAtendidaInput = {
 export type PersonaAtendidaErrors = Partial<Record<keyof PersonaAtendidaInput, string>>;
 
 const NAME_PATTERN = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s'’-]*$/;
-const ENTITY_VALUES: readonly string[] = ENTITY_OPTIONS.map((o) => o.value);
 
 function validarNombrePersona(value: string, label: "nombre" | "apellido"): string | null {
   const v = value.trim();
@@ -101,10 +101,15 @@ function validarTextoObligatorio(value: string, mensaje: string, max: number): s
 /**
  * US-64: valida los datos de la persona atendida. Todos los campos del
  * formulario son obligatorios; la cobertura es declarativa (sin padrón).
+ *
+ * `entidadesValidas` es el listado real de obras sociales del administrador
+ * (US-32). Si se pasa, la entidad debe figurar en él; si no, la validación solo
+ * exige que haya texto, porque la cobertura es un dato declarativo.
  */
 export function validarPersonaAtendida(
   data: PersonaAtendidaInput,
-  hoy: Date = new Date()
+  hoy: Date = new Date(),
+  entidadesValidas?: readonly string[]
 ): PersonaAtendidaErrors {
   const errors: PersonaAtendidaErrors = {};
   const set = (key: keyof PersonaAtendidaInput, error: string | null) => {
@@ -122,7 +127,10 @@ export function validarPersonaAtendida(
   const entity = data.healthInsuranceEntity.trim();
   if (!entity) {
     errors.healthInsuranceEntity = "Seleccioná la entidad de la obra social.";
-  } else if (!ENTITY_VALUES.includes(entity)) {
+  } else if (
+    entidadesValidas &&
+    !entidadesValidas.some((e) => normalizarEntidad(e) === normalizarEntidad(entity))
+  ) {
     errors.healthInsuranceEntity = "Seleccioná una entidad válida.";
   }
   set(

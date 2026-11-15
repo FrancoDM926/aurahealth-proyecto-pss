@@ -41,6 +41,8 @@ type Props = {
   mensajeVacio: string | null;
   /** Personas que cargó el propio usuario (modo paciente). */
   personasPropias: PersonaOpcion[];
+  /** US-32: obras sociales que administra el administrador. */
+  entidades: string[];
   basePath: string;
 };
 
@@ -61,6 +63,7 @@ export function TurnosVacunacionView({
   gruposPorDia,
   mensajeVacio,
   personasPropias,
+  entidades,
   basePath,
 }: Props) {
   const router = useRouter();
@@ -276,6 +279,7 @@ export function TurnosVacunacionView({
         <div className="mt-6">
           <PersonaAtendidaSelector
             personas={personasDisponibles}
+            entidades={entidades}
             serverErrors={personaErrors}
             onElegir={(p) => {
               setPersona(p);

@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { assertRoles } from "@/lib/auth-session";
 import { ahoraEnArgentina, esTurnoFuturo } from "@/lib/busqueda-turnos";
-import { getCancelacionAntelacion } from "@/lib/configuracion";
+import { getCancelacionAntelacion, nombresObrasSociales } from "@/lib/configuracion";
+import { canonizarEntidad } from "@/lib/pagos";
 import {
   estaEnPlazoDeCancelacion,
   normalizarDocumento,
@@ -103,8 +104,11 @@ export async function reservarTurnoAction(
   }
 
   const otra = input.paraOtraPersona;
+  // Listado real de obras sociales (US-32): valida la entidad y guarda su
+  // nombre canónico para que el descuento se encuentre al cobrar (US-34).
+  const entidades = otra && "nueva" in otra ? await nombresObrasSociales() : [];
   if (otra && "nueva" in otra) {
-    const personaErrors = validarPersonaAtendida(otra.nueva);
+    const personaErrors = validarPersonaAtendida(otra.nueva, new Date(), entidades);
     if (Object.keys(personaErrors).length > 0) {
       return {
         success: false,
@@ -157,7 +161,7 @@ export async function reservarTurnoAction(
             lastName: datos.lastName.trim(),
             docNumber: normalizarDocumento(datos.docNumber),
             birthDate: parseBirthDate(datos.birthDate.trim())!,
-            healthInsuranceEntity: datos.healthInsuranceEntity.trim(),
+            healthInsuranceEntity: canonizarEntidad(datos.healthInsuranceEntity, entidades),
             healthInsurancePlan: datos.healthInsurancePlan.trim(),
             healthInsuranceNumber: datos.healthInsuranceNumber.trim(),
           },

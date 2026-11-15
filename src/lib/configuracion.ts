@@ -72,6 +72,19 @@ export async function getAdjuntoMaxMB(): Promise<number> {
   return acotarMaxAdjuntoMB(config?.adjuntoMaxMB ?? 0);
 }
 
+/**
+ * US-32 / US-34: nombres canónicos de las obras sociales que administra el
+ * administrador. Es la fuente de los selects de cobertura y de la validación de
+ * la entidad, en lugar del listado hardcodeado.
+ */
+export async function nombresObrasSociales(): Promise<string[]> {
+  const obras = await db.obraSocial.findMany({
+    orderBy: { nombre: "asc" },
+    select: { nombre: true },
+  });
+  return obras.map((o) => o.nombre);
+}
+
 /** US-34: obras sociales con su descuento porcentual predefinido, para administrarlas. */
 export async function getObrasSociales() {
   return db.obraSocial.findMany({

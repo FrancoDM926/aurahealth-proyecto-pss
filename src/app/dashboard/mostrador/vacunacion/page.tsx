@@ -3,6 +3,7 @@ import { buscarTurnosVacunacion } from "@/actions/turnos-vacunacion";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { TurnosVacunacionView } from "@/components/turnos-vacunacion-view";
 import { requireRoles } from "@/lib/auth-session";
+import { nombresObrasSociales } from "@/lib/configuracion";
 import { nombreVacuna } from "@/lib/turnos-vacunacion";
 
 type PageProps = {
@@ -25,9 +26,10 @@ export default async function MostradorVacunacionPage({ searchParams }: PageProp
   const { role, profile } = await requireRoles(["ENFERMERA", "ADMINISTRATIVO"]);
   const params = await searchParams;
 
-  const [vacunas, busqueda] = await Promise.all([
+  const [vacunas, busqueda, entidades] = await Promise.all([
     listarVacunasActivas(),
     buscarTurnosVacunacion({ desde: params.desde ?? null, hasta: params.hasta ?? null }),
+    nombresObrasSociales(),
   ]);
 
   return (
@@ -48,6 +50,7 @@ export default async function MostradorVacunacionPage({ searchParams }: PageProp
         rangoDefecto={busqueda.rangoDefecto}
         gruposPorDia={busqueda.gruposPorDia}
         mensajeVacio={busqueda.mensajeVacio}
+        entidades={entidades}
         personasPropias={[]}
       />
     </DashboardShell>

@@ -7,11 +7,14 @@ import {
   validateCompleteProfileData,
   DOC_TYPES,
   DOC_TYPE_LABELS,
-  ENTITY_OPTIONS,
   MAX_LENGTHS,
 } from "@/lib/validation";
 
-export function CompleteProfileForm() {
+/**
+ * US-32: el listado de obras sociales lo administra el administrador y llega
+ * desde el servidor; no hay nombres hardcodeados (US-34).
+ */
+export function CompleteProfileForm({ entidades }: { entidades: string[] }) {
   const router = useRouter();
 
   // Estados del formulario
@@ -381,9 +384,9 @@ export function CompleteProfileForm() {
               }`}
             >
               <option value="">Seleccionar entidad</option>
-              {ENTITY_OPTIONS.map((entity) => (
-                <option key={entity.value} value={entity.value}>
-                  {entity.label}
+              {entidades.map((nombre) => (
+                <option key={nombre} value={nombre}>
+                  {nombre}
                 </option>
               ))}
             </select>

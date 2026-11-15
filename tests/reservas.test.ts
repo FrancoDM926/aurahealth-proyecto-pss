@@ -101,10 +101,28 @@ describe("US-64 · datos de la persona atendida", () => {
   it("rechaza una fecha de nacimiento futura y una entidad fuera del listado", () => {
     const errors = validarPersonaAtendida(
       { ...valida, birthDate: "2027-01-01", healthInsuranceEntity: "Otra" },
-      HOY
+      HOY,
+      ["OSDE", "Swiss Medical", "IOMA", "PAMI"]
     );
     assert.ok(errors.birthDate);
     assert.ok(errors.healthInsuranceEntity);
+  });
+
+  it("acepta la entidad con espacios o mayúsculas distintas si está en el listado", () => {
+    const errors = validarPersonaAtendida(
+      { ...valida, healthInsuranceEntity: "  osde " },
+      HOY,
+      ["OSDE", "Swiss Medical"]
+    );
+    assert.deepEqual(errors, {});
+  });
+
+  it("sin listado del administrador la cobertura sigue siendo declarativa", () => {
+    const errors = validarPersonaAtendida(
+      { ...valida, healthInsuranceEntity: "Galeno" },
+      HOY
+    );
+    assert.deepEqual(errors, {});
   });
 
   it("normaliza el documento para no duplicar personas", () => {

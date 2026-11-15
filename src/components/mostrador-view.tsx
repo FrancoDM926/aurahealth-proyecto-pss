@@ -20,7 +20,7 @@ import {
   type TurnoPacienteMostradorItem,
 } from "@/lib/mostrador";
 import { SPECIALTY_LABELS } from "@/lib/roles";
-import { DOC_TYPES, ENTITY_OPTIONS } from "@/lib/validation";
+import { DOC_TYPES } from "@/lib/validation";
 import type { MedicalSpecialty } from "@/generated/prisma/client";
 import { Paginacion, usePaginacion } from "@/components/paginacion";
 
@@ -39,10 +39,9 @@ export function MostradorView({ initialData }: Props) {
   const [isPending, startTransition] = useTransition();
   const reservaSectionRef = useRef<HTMLElement | null>(null);
 
-  const obrasSocialesDisponibles =
-    initialData.obrasSociales && initialData.obrasSociales.length > 0
-      ? initialData.obrasSociales
-      : ENTITY_OPTIONS.map((o) => o.value);
+  // US-32: el listado lo administra el administrador (tabla `ObraSocial`); no
+  // hay nombres hardcodeados para no guardar una entidad sin descuento (US-34).
+  const obrasSocialesDisponibles = initialData.obrasSociales ?? [];
 
   // Estado de pacientes y búsqueda (Sección 1)
   const [pacientes, setPacientes] = useState<PacienteMostradorItem[]>(
@@ -68,7 +67,7 @@ export function MostradorView({ initialData }: Props) {
     "OBRA_SOCIAL"
   );
   const [healthInsuranceEntity, setHealthInsuranceEntity] = useState<string>(
-    obrasSocialesDisponibles[0] ?? "OSDE"
+    obrasSocialesDisponibles[0] ?? ""
   );
   const [healthInsurancePlan, setHealthInsurancePlan] = useState("");
   const [healthInsuranceNumber, setHealthInsuranceNumber] = useState("");

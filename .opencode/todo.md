@@ -187,3 +187,30 @@ romper la pantalla, validando el tamaño en cliente y servidor. Fuente:
 
 ## Pendiente de verificación manual
 - Probar en la app compilada (`next start`) 500 KB, 2 MB y 5 MB; confirmar el techo real del hosting. No ejecutado en esta sesión (requiere sesión Clerk y base accesible).
+
+---
+
+# Sprint 3 — corrección 2: US-34/32, descuento de obra social — COMPLETADA
+
+Objetivo: que un paciente registrado con email real y una obra social del
+listado reciba el descuento configurado por el administrador al cobrar desde
+mostrador. Fuente: `ctxt/plan-correcciones-sprint-3.md` §3.2.
+
+## M1: Comparación y guardado canónicos — status: completed
+- [x] S1.1.1: `normalizarEntidad()` (trim, espacios colapsados, minúsculas, sin acentos) usada en `descuentoParaCobertura()`
+- [x] S1.1.2: `canonizarEntidad()` al guardar en `completeUserProfile`, `updateUserProfile`, alta de mostrador, reserva de turno y reserva de vacunación
+- [x] S1.1.3: `completeUserProfile` reescribe la cobertura cuando la fila ya existía con el mismo `clerkUserId` (perfil preexistente sin descuento)
+
+## M2: Listado real (US-32) en lugar de `ENTITY_OPTIONS` — status: completed
+- [x] S2.1.1: `nombresObrasSociales()` en `src/lib/configuracion.ts`; se elimina `ENTITY_OPTIONS` de `src/lib/validation.ts`
+- [x] S2.1.2: selects y validación de entidad alimentados por esa lista en Registro, Mi cuenta, Reserva, Persona atendida (turno médico y vacunación) y Mostrador
+- [x] S2.1.3: `validarPersonaAtendida(..., entidadesValidas?)` valida contra el listado cuando se le pasa; sin listado sigue siendo declarativa
+
+## M3: Pruebas y verificación — status: completed
+- [x] S3.1.1: `tests/pagos.test.ts` +4 pruebas (espacios/mayúsculas/acentos, nombre parecido no encontrado, `normalizarEntidad`, `canonizarEntidad`); `tests/reservas.test.ts` +2
+- [x] S3.1.2: `npm test` → 344/344 verdes · `npm run typecheck` sin errores · `npm run lint` solo los 8 problemas preexistentes · `npx next build` exitoso
+
+## Pendiente (requiere base accesible)
+- La advertencia «La obra social X no figura en el listado…» ya existía en `/dashboard/pagos/[turnoId]` y ahora se dispara solo cuando corresponde.
+- `npm run backfill:coberturas` (simulación por defecto, `--apply` para escribir) no se pudo ejecutar: Neon inalcanzable desde este entorno (`ECONNREFUSED`).
+- Reproducción con datos reales (paciente con email real + OSDE → cobro con descuento) pendiente por el mismo motivo.

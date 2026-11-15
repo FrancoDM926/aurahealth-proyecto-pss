@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
     "backfill:clerk-roles": "tsx scripts/backfill-clerk-roles.ts",
+    "backfill:coberturas": "tsx scripts/backfill-coberturas.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

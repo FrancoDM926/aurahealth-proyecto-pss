@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getCurrentUserProfile } from "@/actions/user";
 import { CompleteProfileForm } from "@/components/complete-profile-form";
 import { BrandLogo } from "@/components/logo";
+import { nombresObrasSociales } from "@/lib/configuracion";
 
 export const metadata = {
   title: "Completar perfil | AuraHealth",
@@ -23,6 +24,8 @@ export default async function CompleteProfilePage() {
     redirect("/dashboard");
   }
 
+  const entidades = await nombresObrasSociales();
+
   return (
     <main className="min-h-dvh bg-background px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-2xl">
@@ -36,7 +39,7 @@ export default async function CompleteProfilePage() {
           </p>
         </header>
 
-        <CompleteProfileForm />
+        <CompleteProfileForm entidades={entidades} />
       </div>
     </main>
   );

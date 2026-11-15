@@ -6,7 +6,7 @@ import {
   type PersonaAtendidaErrors,
   type PersonaAtendidaInput,
 } from "@/lib/reservas";
-import { ENTITY_OPTIONS, MAX_LENGTHS } from "@/lib/validation";
+import { MAX_LENGTHS } from "@/lib/validation";
 
 /**
  * US-64 — elegir a la persona atendida: una ya cargada o una nueva (wf_reserva_terceros).
@@ -48,11 +48,14 @@ export function nombreDePersona(p: PersonaSeleccionada): string {
 
 export function PersonaAtendidaSelector({
   personas,
+  entidades,
   serverErrors,
   onElegir,
   onVolver,
 }: {
   personas: PersonaOpcion[];
+  /** US-32: obras sociales que administra el administrador. */
+  entidades: string[];
   /** Errores devueltos por el servidor (por ejemplo, documento repetido). */
   serverErrors?: PersonaAtendidaErrors;
   onElegir: (persona: PersonaSeleccionada) => void;
@@ -64,7 +67,7 @@ export function PersonaAtendidaSelector({
 
   const continuar = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const errors = validarPersonaAtendida(nueva);
+    const errors = validarPersonaAtendida(nueva, new Date(), entidades);
     setErrores(errors);
     if (Object.keys(errors).length > 0) return;
     onElegir({ tipo: "nueva", datos: nueva });
@@ -136,9 +139,9 @@ export function PersonaAtendidaSelector({
                 className={INPUT_CLASS}
               >
                 <option value="">Seleccioná una entidad</option>
-                {ENTITY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
+                {entidades.map((nombre) => (
+                  <option key={nombre} value={nombre}>
+                    {nombre}
                   </option>
                 ))}
               </select>

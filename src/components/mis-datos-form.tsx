@@ -11,7 +11,6 @@ import {
 import {
   validateProfileUpdateData,
   DOC_TYPES,
-  ENTITY_OPTIONS,
   MAX_LENGTHS,
 } from "@/lib/validation";
 
@@ -34,7 +33,17 @@ type UserData = {
   role: string;
 };
 
-export function MisDatosForm({ user }: { user: UserData }) {
+/**
+ * US-32: el listado de obras sociales viene del servidor (tabla `ObraSocial`);
+ * no se lista ninguna entidad hardcodeada.
+ */
+export function MisDatosForm({
+  user,
+  entidades,
+}: {
+  user: UserData;
+  entidades: string[];
+}) {
   const { user: clerkUser } = useUser();
   const router = useRouter();
   const missingDoc = !user.docNumber;
@@ -533,9 +542,9 @@ export function MisDatosForm({ user }: { user: UserData }) {
                   }`}
                 >
                   <option value="">Seleccionar entidad</option>
-                  {ENTITY_OPTIONS.map((entity) => (
-                    <option key={entity.value} value={entity.value}>
-                      {entity.label}
+                  {entidades.map((nombre) => (
+                    <option key={nombre} value={nombre}>
+                      {nombre}
                     </option>
                   ))}
                 </select>

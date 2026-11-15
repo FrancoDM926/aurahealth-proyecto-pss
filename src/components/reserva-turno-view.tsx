@@ -10,7 +10,7 @@ import {
   type PersonaAtendidaErrors,
   type PersonaAtendidaInput,
 } from "@/lib/reservas";
-import { ENTITY_OPTIONS, MAX_LENGTHS } from "@/lib/validation";
+import { MAX_LENGTHS } from "@/lib/validation";
 
 export type TurnoAReservar = {
   id: string;
@@ -67,9 +67,12 @@ function nombrePersona(persona: PersonaElegida): string {
 export function ReservaTurnoView({
   turno,
   personas,
+  entidades,
 }: {
   turno: TurnoAReservar | null;
   personas: PersonaCargada[];
+  /** US-32: obras sociales que administra el administrador. */
+  entidades: string[];
 }) {
   const [paso, setPaso] = useState<Paso>(turno ? "datos" : "no-disponible");
   const [paraOtra, setParaOtra] = useState(false);
@@ -100,7 +103,7 @@ export function ReservaTurnoView({
 
   const continuarConPersonaNueva = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const errors = validarPersonaAtendida(nueva);
+    const errors = validarPersonaAtendida(nueva, new Date(), entidades);
     setPersonaErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setPersona({ tipo: "nueva", datos: nueva });
@@ -324,9 +327,9 @@ export function ReservaTurnoView({
                   className={INPUT_CLASS}
                 >
                   <option value="">Seleccioná una entidad</option>
-                  {ENTITY_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
+                  {entidades.map((nombre) => (
+                    <option key={nombre} value={nombre}>
+                      {nombre}
                     </option>
                   ))}
                 </select>

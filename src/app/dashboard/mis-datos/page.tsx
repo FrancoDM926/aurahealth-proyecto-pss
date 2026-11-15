@@ -1,6 +1,7 @@
 import { MisDatosForm } from "@/components/mis-datos-form";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { requireUserProfile } from "@/lib/auth-session";
+import { nombresObrasSociales } from "@/lib/configuracion";
 
 export const metadata = {
   title: "Mi cuenta — Datos personales y cobertura | AuraHealth",
@@ -9,6 +10,7 @@ export const metadata = {
 
 export default async function MisDatosPage() {
   const { role, profile } = await requireUserProfile();
+  const entidades = await nombresObrasSociales();
 
   return (
     <DashboardShell
@@ -29,7 +31,7 @@ export default async function MisDatosPage() {
           </p>
         </div>
 
-        <MisDatosForm user={profile} />
+        <MisDatosForm user={profile} entidades={entidades} />
       </div>
     </DashboardShell>
   );

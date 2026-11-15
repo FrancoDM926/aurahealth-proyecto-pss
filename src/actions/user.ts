@@ -4,6 +4,8 @@ import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { parseClerkRole } from "@/lib/roles";
+import { nombresObrasSociales } from "@/lib/configuracion";
+import { canonizarEntidad } from "@/lib/pagos";
 import {
   parseBirthDate,
   validateCompleteProfileData,
@@ -111,6 +113,37 @@ export async function completeUserProfile(
         };
       }
 
+      // US-34: la fila puede ser anterior al alta de la cobertura (por ejemplo,
+      // creada desde el mostrador). Si no se reescribe la cobertura, el paciente
+      // nuevo queda con los datos viejos y cobra sin descuento.
+      try {
+        const entidades = data.coverageType === "OBRA_SOCIAL" ? await nombresObrasSociales() : [];
+        await db.user.update({
+          where: { id: existingUser.id },
+          data: {
+            coverageType: data.coverageType,
+            healthInsuranceEntity:
+              data.coverageType === "OBRA_SOCIAL"
+                ? canonizarEntidad(data.healthInsuranceEntity ?? "", entidades)
+                : null,
+            healthInsurancePlan:
+              data.coverageType === "OBRA_SOCIAL"
+                ? data.healthInsurancePlan?.trim() || null
+                : null,
+            healthInsuranceNumber:
+              data.coverageType === "OBRA_SOCIAL"
+                ? data.healthInsuranceNumber?.trim() || null
+                : null,
+          },
+        });
+      } catch (error) {
+        console.error("No se pudo actualizar la cobertura del perfil:", error);
+        return {
+          success: false,
+          message: "Ocurrió un error inesperado al guardar los datos. Intentá nuevamente.",
+        };
+      }
+
       return {
         success: true,
         message: "Tu perfil ya se encontraba registrado.",
@@ -157,6 +190,10 @@ export async function completeUserProfile(
     // preserva en lugar de degradarlo.
     const role = await ensureClerkRole(userId, parseClerkRole(user.publicMetadata?.role));
 
+    // US-32/US-34: se guarda el nombre canónico de la obra social del listado
+    // del administrador, no el texto libre, para que el descuento se encuentre.
+    const entidades = data.coverageType === "OBRA_SOCIAL" ? await nombresObrasSociales() : [];
+
     // Espejo en Postgres: solo display y reconciliación, no autoriza.
     await db.user.create({
       data: {
@@ -172,7 +209,9 @@ export async function completeUserProfile(
         alternativeContact: data.alternativeContact?.trim() || null,
         coverageType: data.coverageType,
         healthInsuranceEntity:
-          data.coverageType === "OBRA_SOCIAL" ? data.healthInsuranceEntity?.trim() : null,
+          data.coverageType === "OBRA_SOCIAL"
+            ? canonizarEntidad(data.healthInsuranceEntity ?? "", entidades)
+            : null,
         healthInsurancePlan:
           data.coverageType === "OBRA_SOCIAL" ? data.healthInsurancePlan?.trim() : null,
         healthInsuranceNumber:
@@ -287,6 +326,7 @@ export async function updateUserProfile(
   try {
     // Actualizar en base de datos.
     // RN / US-01: Documento y fecha de nacimiento NO son editables por el usuario.
+    const entidades = data.coverageType === "OBRA_SOCIAL" ? await nombresObrasSociales() : [];
     await db.user.update({
       where: { clerkUserId: userId },
       data: {
@@ -297,7 +337,9 @@ export async function updateUserProfile(
         alternativeContact: data.alternativeContact?.trim() || null,
         coverageType: data.coverageType,
         healthInsuranceEntity:
-          data.coverageType === "OBRA_SOCIAL" ? data.healthInsuranceEntity?.trim() : null,
+          data.coverageType === "OBRA_SOCIAL"
+            ? canonizarEntidad(data.healthInsuranceEntity ?? "", entidades)
+            : null,
         healthInsurancePlan:
           data.coverageType === "OBRA_SOCIAL" ? data.healthInsurancePlan?.trim() : null,
         healthInsuranceNumber:

@@ -3,7 +3,7 @@ import { ReservaTurnoView, type TurnoAReservar } from "@/components/reserva-turn
 import { requireRoles } from "@/lib/auth-session";
 import { db } from "@/lib/db";
 import { ahoraEnArgentina, esTurnoFuturo } from "@/lib/busqueda-turnos";
-import { getSalaDireccion } from "@/lib/configuracion";
+import { getSalaDireccion, nombresObrasSociales } from "@/lib/configuracion";
 import { SPECIALTY_LABELS } from "@/lib/roles";
 
 type PageProps = {
@@ -25,7 +25,7 @@ export default async function ReservarPage({ searchParams }: PageProps) {
   const { role, profile } = await requireRoles(["USUARIO"]);
   const { turno: turnoId } = await searchParams;
 
-  const [turno, personas, salaDireccion] = await Promise.all([
+  const [turno, personas, salaDireccion, entidades] = await Promise.all([
     turnoId
       ? db.turno.findUnique({ where: { id: turnoId }, include: { doctor: true } })
       : Promise.resolve(null),
@@ -42,6 +42,7 @@ export default async function ReservarPage({ searchParams }: PageProps) {
       },
     }),
     getSalaDireccion(),
+    nombresObrasSociales(),
   ]);
 
   const fecha = turno ? turno.date.toISOString().slice(0, 10) : "";
@@ -76,6 +77,7 @@ export default async function ReservarPage({ searchParams }: PageProps) {
       <ReservaTurnoView
         key={turnoId ?? "sin-turno"}
         turno={turnoAReservar}
+        entidades={entidades}
         personas={personas.map((p) => ({
           id: p.id,
           nombre: `${p.firstName} ${p.lastName}`,

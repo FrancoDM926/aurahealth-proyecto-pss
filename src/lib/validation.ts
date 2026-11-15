@@ -23,16 +23,8 @@ export const DOC_TYPE_LABELS: Record<DocType, string> = {
 export const COVERAGE_TYPES = ["OBRA_SOCIAL", "PARTICULAR"] as const;
 export type CoverageType = (typeof COVERAGE_TYPES)[number];
 
-/**
- * Listado hardcodeado mientras US-32 (listado administrado por el
- * administrador) no esté implementado.
- */
-export const ENTITY_OPTIONS = [
-  { value: "OSDE", label: "OSDE" },
-  { value: "Swiss Medical", label: "Swiss Medical" },
-  { value: "IOMA", label: "IOMA" },
-  { value: "PAMI", label: "PAMI" },
-] as const;
+// La entidad de la obra social no se lista acá: sale de la tabla `ObraSocial`
+// que administra el administrador (US-32) y se pasa como prop a cada pantalla.
 
 export const MAX_LENGTHS = {
   firstName: 50,

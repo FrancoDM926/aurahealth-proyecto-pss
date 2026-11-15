@@ -2,6 +2,7 @@ import { db as dbPorDefecto } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { getCancelacionAntelacion } from "@/lib/configuracion";
 import { fechaUtcString } from "@/lib/fecha-utc";
+import { canonizarEntidad } from "@/lib/pagos";
 import {
   estaEnPlazoDeCancelacion,
   normalizarDocumento,
@@ -37,6 +38,8 @@ export type ReservarVacunacionInput = {
   otorgadoPorId?: string | null;
   /** Ausente = el turno es para el titular. US-64: persona ya cargada o nueva. */
   paraOtraPersona?: { personaId: string } | { nueva: PersonaAtendidaInput };
+  /** Listado real de obras sociales del administrador (US-32) para validar y canonizar la entidad. */
+  entidadesValidas?: readonly string[];
 };
 
 export type ReservarVacunacionResult =
@@ -65,7 +68,11 @@ export async function reservarTurnoVacunacion(
 
   const otra = input.paraOtraPersona;
   if (otra && "nueva" in otra) {
-    const personaErrors = validarPersonaAtendida(otra.nueva);
+    const personaErrors = validarPersonaAtendida(
+      otra.nueva,
+      new Date(),
+      input.entidadesValidas
+    );
     if (Object.keys(personaErrors).length > 0) {
       return {
         success: false,
@@ -126,7 +133,10 @@ export async function reservarTurnoVacunacion(
             lastName: d.lastName.trim(),
             docNumber: normalizarDocumento(d.docNumber),
             birthDate: parseBirthDate(d.birthDate.trim())!,
-            healthInsuranceEntity: d.healthInsuranceEntity.trim(),
+            healthInsuranceEntity: canonizarEntidad(
+              d.healthInsuranceEntity,
+              input.entidadesValidas ?? []
+            ),
             healthInsurancePlan: d.healthInsurancePlan.trim(),
             healthInsuranceNumber: d.healthInsuranceNumber.trim(),
           },

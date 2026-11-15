@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import {
   armarHistorialVigencias,
   calcularImporte,
+  canonizarEntidad,
   descuentoParaCobertura,
   formatearNumeroComprobante,
   formatearPesos,
+  normalizarEntidad,
   pesosACentavos,
   precioVigenteEn,
   puedeDescargarComprobante,
@@ -230,6 +232,37 @@ describe("US-34 — Cálculo del importe según la cobertura", () => {
       descuentoPorcentaje: 0,
       configurada: false,
     });
+  });
+
+  it("encuentra la obra social aunque la entidad tenga espacios, mayúsculas o acentos (US-34)", () => {
+    const obras = [
+      { nombre: "Swiss Medical", descuentoPorcentaje: 40 },
+      { nombre: "OSDE", descuentoPorcentaje: 20 },
+      { nombre: "IOMA", descuentoPorcentaje: 30 },
+    ];
+    assert.deepEqual(descuentoParaCobertura({ entidad: "  swiss   medical ", plan: null }, obras), {
+      descuentoPorcentaje: 40,
+      configurada: true,
+    });
+    assert.deepEqual(descuentoParaCobertura({ entidad: "ÓSDE", plan: null }, obras), {
+      descuentoPorcentaje: 20,
+      configurada: true,
+    });
+    // Un nombre parecido no es la misma entidad: se cobra como particular y la
+    // pantalla de cobro avisa (nunca un importe distinto en silencio).
+    assert.deepEqual(descuentoParaCobertura({ entidad: "OSDE 210", plan: null }, obras), {
+      descuentoPorcentaje: 0,
+      configurada: false,
+    });
+  });
+
+  it("normaliza y canoniza la entidad al guardarla", () => {
+    assert.equal(normalizarEntidad("  Ósde   210 "), "osde 210");
+    assert.equal(normalizarEntidad("Swiss Medical"), "swiss medical");
+    assert.equal(canonizarEntidad(" osde ", ["OSDE", "IOMA"]), "OSDE");
+    assert.equal(canonizarEntidad("ÓSDE", ["OSDE", "IOMA"]), "OSDE");
+    assert.equal(canonizarEntidad("Galeno", ["OSDE", "IOMA"]), "Galeno");
+    assert.equal(canonizarEntidad("   ", ["OSDE"]), "");
   });
 });
 

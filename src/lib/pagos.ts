@@ -141,6 +141,33 @@ export function resolverCobertura(input: {
 }
 
 /**
+ * Normaliza un nombre de entidad para compararlo: quita acentos, colapsa
+ * espacios internos y pasa a minúsculas. Así «OSDE», «osde » y
+ * «ÓSDE» se reconocen como la misma obra social (US-34).
+ */
+export function normalizarEntidad(nombre: string): string {
+  return nombre
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+/**
+ * Devuelve el nombre canónico del listado que coincide con `nombre`
+ * (normalizado); si no figura, el texto tal como vino recortado. Se usa al
+ * guardar la cobertura para que lo persistido sea siempre el `ObraSocial.nombre`
+ * de la base.
+ */
+export function canonizarEntidad(nombre: string, entidades: readonly string[]): string {
+  const limpio = nombre.trim();
+  const buscada = normalizarEntidad(limpio);
+  if (!buscada) return limpio;
+  return entidades.find((e) => normalizarEntidad(e) === buscada) ?? limpio;
+}
+
+/**
  * Descuento aplicable a una cobertura. Los particulares no reciben descuento; una
  * entidad que no figura en el listado del administrador tampoco (`configurada: false`).
  */
@@ -149,8 +176,8 @@ export function descuentoParaCobertura(
   obrasSociales: ObraSocialDescuento[]
 ): { descuentoPorcentaje: number; configurada: boolean } {
   if (!cobertura.entidad) return { descuentoPorcentaje: 0, configurada: true };
-  const buscada = cobertura.entidad.toLowerCase();
-  const obra = obrasSociales.find((o) => o.nombre.trim().toLowerCase() === buscada);
+  const buscada = normalizarEntidad(cobertura.entidad);
+  const obra = obrasSociales.find((o) => normalizarEntidad(o.nombre) === buscada);
   if (!obra) return { descuentoPorcentaje: 0, configurada: false };
   return { descuentoPorcentaje: obra.descuentoPorcentaje, configurada: true };
 }

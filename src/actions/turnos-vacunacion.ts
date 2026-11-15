@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { assertRoles } from "@/lib/auth-session";
 import { fechaUtcString } from "@/lib/fecha-utc";
+import { nombresObrasSociales } from "@/lib/configuracion";
 import type { PersonaAtendidaErrors, PersonaAtendidaInput } from "@/lib/reservas";
 import {
   MENSAJE_SIN_RESULTADOS_VACUNACION,
@@ -133,6 +134,10 @@ export async function reservarTurnoVacunacionAction(
     titularId,
     otorgadoPorId: esPersonal ? sesion.profile.id : null,
     paraOtraPersona: input.paraOtraPersona,
+    entidadesValidas:
+      input.paraOtraPersona && "nueva" in input.paraOtraPersona
+        ? await nombresObrasSociales()
+        : [],
   });
 
   revalidar();
